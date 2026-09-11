@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Manrope', system-ui, -apple-system, sans-serif;
+  background-color: #0B1220;
+  color: #E2E8F0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle, restrained scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0B1220;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2D4A;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2A3F63;
+}
+
+/* Refined government-grade surface cards */
+.surface-card {
+  background-color: #111A2B;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+}
+
+.surface-card-elevated {
+  background-color: #162238;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+}
+
+.surface-card-interactive {
+  transition: all 0.18s ease-in-out;
+}
+.surface-card-interactive:hover {
+  background-color: #142034;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Subtle architectural grid pattern */
+.bg-gov-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+/* Subtle fade in transition */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
