@@ -8,19 +8,20 @@ Guarantees:
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from app.models.schemas import CohortHeatmapItem
 from app.ml.synthetic_generator import cohort_manager
 from app.ml.cohesion_analyzer import cohesion_analyzer
 from app.core.k_anonymity import enforce_k_anonymity_cohort, apply_complementary_suppression
 from app.core.audit_chain import audit_ledger
+from app.core.auth import require_roles
 
 router = APIRouter(prefix="/v1/command", tags=["Commander Strategy Layer"])
 
 @router.get("/heatmap", response_model=List[CohortHeatmapItem])
 def get_cohort_heatmaps(
-    commander_id: str = "CMD_GENERAL_01",
-    simulate_privacy_violation: bool = False
+    simulate_privacy_violation: bool = False,
+    user: dict = Depends(require_roles("Z1_COMMANDER")),
 ):
     """
     Returns aggregated battalion/company heatmaps.
@@ -79,7 +80,7 @@ def get_cohort_heatmaps(
     # Log access in audit chain
     audit_ledger.append_log(
         actor_role="commander",
-        actor_id=commander_id,
+        actor_id=user["sub"],
         action="AGGREGATE_HEATMAP_VIEWED",
         metadata={"total_cohorts": len(processed_items)}
     )
@@ -103,7 +104,7 @@ def get_cohort_heatmaps(
     return response_list
 
 @router.get("/cohesion-anomalies")
-def get_cohesion_anomalies(commander_id: str = "CMD_GENERAL_01"):
+def get_cohesion_anomalies(user: dict = Depends(require_roles("Z1_COMMANDER"))):
     """
     Surfaces cohort-level climate anomalies (toxic sub-unit friction, leave denial spikes)
     without naming ANY individual.
@@ -117,9 +118,42 @@ def get_cohesion_anomalies(commander_id: str = "CMD_GENERAL_01"):
 
     audit_ledger.append_log(
         actor_role="commander",
-        actor_id=commander_id,
+        actor_id=user["sub"],
         action="COHESION_ANOMALIES_VIEWED",
         metadata={"active_alerts": len(alerts)}
     )
 
     return alerts
+
+
+@router.get("/cohort-statistics")
+def get_cohort_statistics(user: dict = Depends(require_roles("Z1_COMMANDER", "Z1_WELFARE_OFFICER", "Z0_PERSONNEL", "AUDITOR"))):
+    """
+    Returns basic cohort statistics for frontend dashboard.
+    Provides total personnel count and unit information.
+    This endpoint is accessible to all roles for wellness overview statistics.
+    """
+    df = cohort_manager.personnel_df
+    if df.empty:
+        return {
+            "total_personnel": 0,
+            "unit_name": "CRPF 144 Bn",
+            "force_type_distribution": {}
+        }
+
+    # Count personnel by force type
+    force_type_counts = df["force_type"].value_counts().to_dict()
+
+    # Log access in audit chain
+    audit_ledger.append_log(
+        actor_role="commander",
+        actor_id=user["sub"],
+        action="COHORT_STATISTICS_VIEWED",
+        metadata={"total_personnel": len(df)}
+    )
+
+    return {
+        "total_personnel": len(df),
+        "unit_name": "CRPF 144 Bn",
+        "force_type_distribution": force_type_counts
+    }

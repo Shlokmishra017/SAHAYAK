@@ -41,7 +41,7 @@ class HRRiskEngine:
             learning_rate=0.08,
             random_state=42
         )
-        self.model.fit(X, y)
+        self.model.fit(X.to_numpy(), y)
         self.is_trained = True
 
     def predict_individual_risk(

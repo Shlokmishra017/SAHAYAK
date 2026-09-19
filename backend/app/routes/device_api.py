@@ -10,8 +10,15 @@ Handles:
 
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, List
+from fastapi import APIRouter, HTTPException, Depends, Header, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.core.config import settings
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+router = APIRouter(prefix="/v1/device", tags=["Device Edge Gateway"])
+limiter = Limiter(key_func=get_remote_address)
 from app.models.schemas import (
     DeviceAttestationRequest,
     DeviceAttestationResponse,
@@ -24,14 +31,14 @@ from app.ml.synthetic_generator import cohort_manager
 from app.ml.hr_risk_model import hr_risk_engine
 from app.core.reason_codes import validate_reason_codes
 from app.core.audit_chain import audit_ledger
+from app.core.auth import require_roles
+from app.core.database import CaseRecord, IdempotencyRecord, get_db
 
 router = APIRouter(prefix="/v1/device", tags=["Device Edge Gateway"])
 
-# In-memory Case Store for Z1 (demonstration storage)
-ACTIVE_CASES: Dict[str, Dict] = {}
-
 @router.post("/attest", response_model=DeviceAttestationResponse)
-def attest_device(req: DeviceAttestationRequest):
+@limiter.limit("10/minute")
+def attest_device(request: Request, req: DeviceAttestationRequest, _user: dict = Depends(require_roles("Z0_PERSONNEL"))):
     """
     Simulates hardware device attestation (Play Integrity / DeviceCheck).
     Verifies the device is untampered before allowing risk-band sync.
@@ -44,22 +51,15 @@ def attest_device(req: DeviceAttestationRequest):
     )
 
 @router.get("/risk-band/{pseudonym_id}", response_model=RiskBandResponse)
-def get_risk_band(pseudonym_id: str):
+def get_risk_band(pseudonym_id: str, _user: dict = Depends(require_roles("Z0_PERSONNEL"))):
     """
     The device pulls the server-side HR risk band.
     Inverts the privacy flow: Device pulls HR data and fuses locally,
     preventing private psychological state from leaving the device.
     """
-    df = cohort_manager.personnel_df
-    if df.empty:
+    record = cohort_manager.get_personnel_by_pseudonym(pseudonym_id)
+    if not record:
         raise HTTPException(status_code=503, detail="Cohort data not initialized yet.")
-    
-    match = df[df["pseudonym_id"] == pseudonym_id]
-    if match.empty:
-        # Fallback to random sample record for demonstration
-        record = df.iloc[0].to_dict()
-    else:
-        record = match.iloc[0].to_dict()
 
     ctx = record["force_type"]
     baseline = cohort_manager.cohort_stats.get(ctx, {"median": 0.50, "mad": 0.12})
@@ -77,7 +77,14 @@ def get_risk_band(pseudonym_id: str):
     )
 
 @router.post("/escalations")
-def submit_escalation(payload: EscalationPayload):
+@limiter.limit("30/minute")
+def submit_escalation(
+    request: Request,
+    payload: EscalationPayload,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+    _user: dict = Depends(require_roles("Z0_PERSONNEL")),
+):
     """
     Device submits an escalation when local fusion reaches Elevated or Critical tier.
     CRITICAL INVARIANT: Contains ONLY pseudonym_id, tier, whitelisted reason codes.
@@ -87,6 +94,11 @@ def submit_escalation(payload: EscalationPayload):
     clean_codes = validate_reason_codes(payload.reason_codes)
     if not clean_codes:
         clean_codes = ["RC_MOOD_TRAJECTORY_DROP"]
+
+    if idempotency_key:
+        previous = db.get(IdempotencyRecord, idempotency_key)
+        if previous:
+            return {"status": "accepted", "case_id": previous.case_id, "tier": payload.tier, "duplicate": True}
 
     case_id = f"CASE-{uuid.uuid4().hex[:8].upper()}"
     
@@ -98,23 +110,22 @@ def submit_escalation(payload: EscalationPayload):
         if not match.empty:
             unit_context = match.iloc[0]["unit_name"]
 
-    case_record = {
-        "case_id": case_id,
-        "pseudonym_id": payload.pseudonym_id,
-        "tier": payload.tier,
-        "origin": payload.origin,
-        "reason_codes": clean_codes,
-        "opened_at": payload.detected_at or datetime.now(timezone.utc).isoformat(),
-        "closed_at": None,
-        "status": "open",
-        "unit_context": unit_context,
-        "h_band": 3 if payload.tier in ["elevated", "critical"] else 1,
-        "has_acute_marker": "RC_ACUTE_DISTRESS_MARKER" in clean_codes,
-        "officer_label": None,
-        "interventions": []
-    }
-
-    ACTIVE_CASES[case_id] = case_record
+    case_record = CaseRecord(
+        case_id=case_id,
+        pseudonym_id=payload.pseudonym_id,
+        tier=payload.tier,
+        origin=payload.origin,
+        reason_codes=clean_codes,
+        opened_at=payload.detected_at or datetime.now(timezone.utc).isoformat(),
+        status="open",
+        unit_context=unit_context,
+        h_band=3 if payload.tier in ["elevated", "critical"] else 1,
+        has_acute_marker="RC_ACUTE_DISTRESS_MARKER" in clean_codes,
+    )
+    db.add(case_record)
+    if idempotency_key:
+        db.add(IdempotencyRecord(key=idempotency_key, case_id=case_id))
+    db.commit()
 
     # Log escalation intake into immutable SHA-256 audit ledger
     audit_ledger.append_log(
@@ -129,28 +140,31 @@ def submit_escalation(payload: EscalationPayload):
     return {"status": "accepted", "case_id": case_id, "tier": payload.tier}
 
 @router.post("/self-referral")
-def submit_self_referral(req: SelfReferralRequest):
+@limiter.limit("10/minute")
+def submit_self_referral(
+    request: Request,
+    req: SelfReferralRequest,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(require_roles("Z0_PERSONNEL")),
+):
     """
     Voluntary self-referral initiated by personnel.
     Always accepted directly into triage queue.
     """
     case_id = f"CASE-SELF-{uuid.uuid4().hex[:6].upper()}"
-    case_record = {
-        "case_id": case_id,
-        "pseudonym_id": req.pseudonym_id,
-        "tier": "elevated",
-        "origin": "self_referral",
-        "reason_codes": ["RC_MOOD_TRAJECTORY_DROP"],
-        "opened_at": req.request_timestamp or datetime.now(timezone.utc).isoformat(),
-        "closed_at": None,
-        "status": "open",
-        "unit_context": "Self-Initiated Welfare Connect",
-        "h_band": 2,
-        "has_acute_marker": False,
-        "officer_label": None,
-        "interventions": []
-    }
-    ACTIVE_CASES[case_id] = case_record
+    db.add(CaseRecord(
+        case_id=case_id,
+        pseudonym_id=req.pseudonym_id,
+        tier="elevated",
+        origin="self_referral",
+        reason_codes=["RC_MOOD_TRAJECTORY_DROP"],
+        opened_at=req.request_timestamp or datetime.now(timezone.utc).isoformat(),
+        status="open",
+        unit_context="Self-Initiated Welfare Connect",
+        h_band=2,
+        has_acute_marker=False,
+    ))
+    db.commit()
 
     audit_ledger.append_log(
         actor_role="personnel_self",
@@ -164,16 +178,23 @@ def submit_self_referral(req: SelfReferralRequest):
     return {"status": "created", "case_id": case_id}
 
 @router.post("/erasure")
-def request_data_erasure(req: ErasureRequest):
+@limiter.limit("5/minute")
+def request_data_erasure(
+    request: Request,
+    req: ErasureRequest,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(require_roles("Z0_PERSONNEL")),
+):
     """
     DPDP compliant Right to Erasure / Data Purge.
     Clears all active flags and server records linked to the pseudonym.
     """
     deleted_count = 0
-    to_delete = [cid for cid, c in ACTIVE_CASES.items() if c["pseudonym_id"] == req.pseudonym_id]
-    for cid in to_delete:
-        del ACTIVE_CASES[cid]
-        deleted_count += 1
+    cases = list(db.scalars(select(CaseRecord).where(CaseRecord.pseudonym_id == req.pseudonym_id)))
+    deleted_count = len(cases)
+    for case in cases:
+        db.delete(case)
+    db.commit()
 
     audit_ledger.append_log(
         actor_role="personnel_data_principal",

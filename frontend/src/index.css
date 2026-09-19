@@ -3,14 +3,23 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --canvas: #f8f8f5;
+  --surface: #ffffff;
+  --surface-subtle: #f1f1ed;
+  --border: #dfdfd9;
+  --border-strong: #c9c9c1;
+  --ink: #1f1f1b;
+  --muted: #66665f;
+  --accent: #b9573a;
+  --accent-strong: #95432d;
 }
 
 body {
   margin: 0;
-  font-family: 'Inter', 'Manrope', system-ui, -apple-system, sans-serif;
-  background-color: #0B1220;
-  color: #E2E8F0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--canvas);
+  color: var(--ink);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -22,45 +31,64 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0B1220;
+  background: var(--canvas);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1E2D4A;
-  border-radius: 6px;
+  background: var(--border-strong);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2A3F63;
+  background: #aaa9a1;
 }
 
-/* Refined government-grade surface cards */
+/* Shared surface primitives keep legacy feature views visually consistent. */
 .surface-card {
-  background-color: #111A2B;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .surface-card-elevated {
-  background-color: #162238;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .surface-card-interactive {
   transition: all 0.18s ease-in-out;
 }
 .surface-card-interactive:hover {
-  background-color: #142034;
-  border-color: rgba(255, 255, 255, 0.14);
+  background-color: var(--surface-subtle);
+  border-color: var(--border-strong);
 }
 
-/* Subtle architectural grid pattern */
+/* Quiet paper texture for the authentication surface. */
 .bg-gov-pattern {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-image: radial-gradient(#d8d8d1 0.6px, transparent 0.6px);
+  background-size: 18px 18px;
+}
+
+/* Legacy utility values map to the editorial neutral system. */
+.bg-\[\#0B1220\] { background-color: var(--canvas) !important; }
+.bg-\[\#060b17\] { background-color: var(--surface) !important; }
+.bg-\[\#111A2B\] { background-color: var(--surface) !important; }
+.bg-\[\#0E1729\] { background-color: var(--surface-subtle) !important; }
+.bg-\[\#162238\] { background-color: var(--surface-subtle) !important; }
+.bg-\[\#1D2D49\] { background-color: #e9e9e4 !important; }
+.border-\[\#1E2D4A\] { border-color: var(--border) !important; }
+.text-white { color: var(--ink) !important; }
+.text-slate-100, .text-slate-200, .text-slate-300 { color: #3f3f39 !important; }
+.text-slate-400, .text-slate-500 { color: var(--muted) !important; }
+.placeholder-slate-500::placeholder { color: #85857d !important; }
+.rounded-xl { border-radius: 8px !important; }
+.rounded-2xl { border-radius: 10px !important; }
+.shadow-card { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important; }
+button, input, select, textarea { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Subtle fade in transition */
@@ -70,5 +98,5 @@ body {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.2s ease-out forwards;
+  animation: fadeIn 0.18s ease-out forwards;
 }

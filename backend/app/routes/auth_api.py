@@ -3,11 +3,16 @@ Authentication & RBAC Identity Service
 Validates service credentials and automatically resolves user role and security clearance.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from typing import Optional, Dict
+from typing import Dict
+from app.core.auth import create_access_token, hash_password, verify_password
+from app.core.config import settings
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication & Identity"])
+limiter = Limiter(key_func=get_remote_address)
 
 class LoginRequest(BaseModel):
     full_name: str
@@ -27,7 +32,9 @@ class AuthUser(BaseModel):
 
 class LoginResponse(BaseModel):
     authenticated: bool
-    token: str
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
     user: AuthUser
 
 # Authoritative Account Directory (Simulated DB)
@@ -74,13 +81,20 @@ ACCOUNTS_DB: Dict[str, Dict] = {
     }
 }
 
+for account in ACCOUNTS_DB.values():
+    account["password_hash"] = hash_password("ServicePass@2026")
+
 @router.post("/login", response_model=LoginResponse)
-def authenticate_user(req: LoginRequest):
+@limiter.limit("10/minute")
+def authenticate_user(request: Request, req: LoginRequest):
     svc_id = req.service_id.strip().upper()
     
     # Check if known service ID
     account = ACCOUNTS_DB.get(svc_id)
     
+    if not account and not settings.demo_mode:
+        raise HTTPException(status_code=401, detail="Invalid service credentials")
+
     if not account:
         # Fallback dynamic provisioning for any general service ID
         if svc_id.startswith("WO") or "WELFARE" in svc_id:
@@ -111,9 +125,15 @@ def authenticate_user(req: LoginRequest):
             "avatar": (req.full_name[:2] if len(req.full_name) >= 2 else "SO").upper()
         }
 
+        account["password_hash"] = hash_password(req.password)
+
+    if not verify_password(req.password, account["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid service credentials")
+
     return LoginResponse(
         authenticated=True,
-        token=f"jwt_{svc_id.lower()}_sec_tok",
+        access_token=create_access_token(account),
+        expires_in=settings.jwt_expiry_minutes * 60,
         user=AuthUser(
             id=account["service_id"],
             service_id=account["service_id"],

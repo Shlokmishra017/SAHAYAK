@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Lock, 
-  CheckCircle2, 
-  AlertTriangle, 
-  RefreshCw, 
-  ShieldAlert, 
-  Check 
+import {
+  Lock,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  ShieldAlert,
+  Check,
+  Copy
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { 
@@ -167,9 +168,27 @@ export function HashChainInspector() {
                   <span className="text-slate-500 block">Previous Hash (prev_hash):</span>
                   <span className="text-slate-400">{block.prev_hash}</span>
                 </div>
-                <div className="p-2 bg-[#0B1220] rounded-lg border border-[#1E2D4A] truncate">
+                <div className="p-2 bg-[#0B1220] rounded-lg border border-[#1E2D4A] truncate relative">
                   <span className="text-emerald-400 block font-medium">Block Hash (SHA-256):</span>
-                  <span className="text-emerald-300 font-semibold">{block.block_hash}</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-emerald-300 font-semibold truncate max-w-[120px]">
+                      {`${block.block_hash.slice(0, 8)}...${block.block_hash.slice(-8)}`}
+                    </span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(block.block_hash);
+                          showToast("Full hash copied to clipboard", "success");
+                        } catch (err) {
+                          showToast("Failed to copy hash", "error");
+                        }
+                      }}
+                      className="p-1 rounded hover:bg-[#162238/50] text-xs text-slate-400"
+                      title="Click to copy full 64-character SHA-256 hash"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
 

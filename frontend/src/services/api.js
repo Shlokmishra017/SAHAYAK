@@ -5,77 +5,47 @@
 
 const API_BASE = '/v1';
 
-export async function loginWithCredentials(fullName, serviceId, password) {
-  try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        full_name: fullName,
-        service_id: serviceId,
-        password: password
-      })
-    });
-    if (!res.ok) throw new Error('Authentication failed');
-    return await res.json();
-  } catch (err) {
-    console.warn('Backend auth offline, resolving mock RBAC identity locally:', err);
-    const svc = (serviceId || '').toUpperCase().trim();
-    let role = 'Z0_PERSONNEL';
-    let rank = 'Constable (GD)';
-    let name = fullName || 'Vikram Singh';
-    let unit = 'CRPF 144 Bn (CI Ops)';
-    let level = 'Level 0 — Force Personnel (Jawan) Confidential Wellness Suite';
-    let clearance = 'Confidential (Local Enclave)';
-    let avatar = 'VS';
+function authHeaders(extra = {}) {
+  const token = window.localStorage.getItem('sahayak_access_token');
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
+}
 
-    if (svc.includes('WO') || svc.includes('7742') || svc.includes('WELFARE')) {
-      role = 'Z1_WELFARE_OFFICER';
-      rank = 'Capt. / Unit Welfare Officer';
-      name = fullName || 'Meera Nair';
-      unit = 'Sector Welfare Board';
-      level = 'Level 1 — Unit Welfare Officer Triage & Intervention Core';
-      clearance = 'Welfare Officer (Case Level)';
-      avatar = 'MN';
-    } else if (svc.includes('CMD') || svc.includes('1082') || svc.includes('COM')) {
-      role = 'Z1_COMMANDER';
-      rank = 'Col. / Sector Commander';
-      name = fullName || 'R. V. Deshmukh';
-      unit = 'Sector HQ, Srinagar';
-      level = 'Level 2 — Battalion / Sector Commander Macro Strategy';
-      clearance = 'Command Level (k-Anonymity Guarded)';
-      avatar = 'RD';
-    } else if (svc.includes('AUD') || svc.includes('9901') || svc.includes('INSPECT')) {
-      role = 'AUDITOR';
-      rank = 'Inspector / Systems Auditor';
-      name = fullName || 'Alok Verma';
-      unit = 'Central Compliance Bureau';
-      level = 'Level 3 — Technical Auditor & Cryptographic Trust Verifier';
-      clearance = 'Cryptographic Ledger Inspector';
-      avatar = 'AV';
-    }
-
-    return {
-      authenticated: true,
-      token: 'jwt_mock_client_token',
-      user: {
-        id: svc || 'CAPF-849201',
-        service_id: svc || 'CAPF-849201',
-        full_name: name,
-        rank,
-        unit,
-        role,
-        level_label: level,
-        clearance,
-        avatar
+function apiFetch(url, options = {}) {
+  return fetch(url, { ...options, headers: authHeaders(options.headers || {}) })
+    .then(async (response) => {
+      // Clear token on 401 Unauthorized
+      if (response.status === 401) {
+        window.localStorage.removeItem('sahayak_access_token');
+        // Optionally redirect to login or show notification
+        // This could be handled by the calling component
       }
-    };
+      return response;
+    });
+}
+
+export async function loginWithCredentials(fullName, serviceId, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      full_name: fullName,
+      service_id: serviceId,
+      password: password
+    })
+  });
+  if (!res.ok) {
+    const error = new Error('Authentication failed');
+    error.status = res.status;
+    throw error;
   }
+  const response = await res.json();
+  window.localStorage.setItem('sahayak_access_token', response.access_token);
+  return { ...response, token: response.access_token };
 }
 
 export async function fetchRiskBand(pseudonymId) {
   try {
-    const res = await fetch(`${API_BASE}/device/risk-band/${pseudonymId}`);
+    const res = await apiFetch(`${API_BASE}/device/risk-band/${pseudonymId}`);
     if (!res.ok) throw new Error('Network response not ok');
     return await res.json();
   } catch (err) {
@@ -94,9 +64,9 @@ export async function fetchRiskBand(pseudonymId) {
 
 export async function submitEscalation(payload) {
   try {
-    const res = await fetch(`${API_BASE}/device/escalations`, {
+    const res = await apiFetch(`${API_BASE}/device/escalations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json', 'Idempotency-Key': payload.client_event_id || crypto.randomUUID() }),
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error('Escalation failed');
@@ -109,7 +79,7 @@ export async function submitEscalation(payload) {
 
 export async function submitSelfReferral(pseudonymId, supportType) {
   try {
-    const res = await fetch(`${API_BASE}/device/self-referral`, {
+    const res = await apiFetch(`${API_BASE}/device/self-referral`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -126,7 +96,7 @@ export async function submitSelfReferral(pseudonymId, supportType) {
 
 export async function requestDataPurge(pseudonymId) {
   try {
-    const res = await fetch(`${API_BASE}/device/erasure`, {
+    const res = await apiFetch(`${API_BASE}/device/erasure`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pseudonym_id: pseudonymId, confirmation_token: 'CONFIRMED' })
@@ -140,7 +110,7 @@ export async function requestDataPurge(pseudonymId) {
 export async function fetchWelfareCases(tierFilter = null) {
   try {
     const url = tierFilter ? `${API_BASE}/welfare/cases?tier=${tierFilter}` : `${API_BASE}/welfare/cases`;
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     if (!res.ok) throw new Error('Failed to fetch cases');
     return await res.json();
   } catch (err) {
@@ -208,7 +178,7 @@ export async function fetchWelfareCases(tierFilter = null) {
 
 export async function logWelfareIntervention(caseId, kind, notes) {
   try {
-    const res = await fetch(`${API_BASE}/welfare/cases/${caseId}/interventions`, {
+    const res = await apiFetch(`${API_BASE}/welfare/cases/${caseId}/interventions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -236,7 +206,7 @@ export async function logWelfareIntervention(caseId, kind, notes) {
 
 export async function submitOfficerLabel(caseId, label, feedback) {
   try {
-    const res = await fetch(`${API_BASE}/welfare/cases/${caseId}/label`, {
+    const res = await apiFetch(`${API_BASE}/welfare/cases/${caseId}/label`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -254,7 +224,7 @@ export async function submitOfficerLabel(caseId, label, feedback) {
 
 export async function fetchCommanderHeatmap() {
   try {
-    const res = await fetch(`${API_BASE}/command/heatmap`);
+    const res = await apiFetch(`${API_BASE}/command/heatmap`);
     if (!res.ok) throw new Error('Failed to fetch heatmap');
     return await res.json();
   } catch (err) {
@@ -331,9 +301,29 @@ export async function fetchCommanderHeatmap() {
   }
 }
 
+export async function fetchCohortStatistics() {
+  try {
+    const res = await apiFetch(`${API_BASE}/command/cohort-statistics`);
+    if (!res.ok) throw new Error('Failed to fetch cohort statistics');
+    return await res.json();
+  } catch (err) {
+    console.warn('Backend offline, returning mock cohort statistics:', err);
+    return {
+      total_personnel: 1200,
+      unit_name: "CRPF 144 Bn",
+      force_type_distribution: {
+        "counter_insurgency": 480,
+        "border_guarding": 360,
+        "public_order": 240,
+        "static_guarding": 120
+      }
+    };
+  }
+}
+
 export async function executeBreakGlass(payload) {
   try {
-    const res = await fetch(`${API_BASE}/identity/break-glass`, {
+    const res = await apiFetch(`${API_BASE}/identity/break-glass`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -367,7 +357,7 @@ export async function executeBreakGlass(payload) {
 
 export async function fetchAuditLedger() {
   try {
-    const res = await fetch(`${API_BASE}/audit/logs`);
+    const res = await apiFetch(`${API_BASE}/audit/logs`);
     if (!res.ok) throw new Error('Failed to fetch audit logs');
     return await res.json();
   } catch (err) {
@@ -415,7 +405,7 @@ export async function fetchAuditLedger() {
 
 export async function verifyAuditLedger() {
   try {
-    const res = await fetch(`${API_BASE}/audit/verify`);
+    const res = await apiFetch(`${API_BASE}/audit/verify`);
     return await res.json();
   } catch (err) {
     return {
@@ -429,7 +419,7 @@ export async function verifyAuditLedger() {
 
 export async function simulateAuditTampering(seq = 1) {
   try {
-    const res = await fetch(`${API_BASE}/audit/tamper-simulation?block_seq=${seq}`, { method: 'POST' });
+    const res = await apiFetch(`${API_BASE}/audit/tamper-simulation?block_seq=${seq}`, { method: 'POST' });
     return await res.json();
   } catch (err) {
     return {
@@ -445,7 +435,7 @@ export async function simulateAuditTampering(seq = 1) {
 
 export async function restoreAuditChain() {
   try {
-    const res = await fetch(`${API_BASE}/audit/restore-chain`, { method: 'POST' });
+    const res = await apiFetch(`${API_BASE}/audit/restore-chain`, { method: 'POST' });
     return await res.json();
   } catch (err) {
     return { status: "chain_restored_and_verified", is_valid: true };

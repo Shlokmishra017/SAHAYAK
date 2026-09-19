@@ -1,23 +1,52 @@
-import React, { useState } from 'react';
-import { 
-  AlertTriangle, 
-  Clock, 
-  ShieldAlert, 
-  CheckCircle, 
-  ChevronRight, 
-  Filter, 
-  UserCheck, 
-  Activity, 
-  Users 
+import React, { useState, useEffect } from 'react';
+import {
+  AlertTriangle,
+  Clock,
+  ShieldAlert,
+  CheckCircle,
+  ChevronRight,
+  Filter,
+  UserCheck,
+  Activity,
+  Users
 } from 'lucide-react';
 import { useAppState } from '../../context/AppStateContext';
 import { StatusBadge, ReasonTag } from '../common/CommonUI';
 import { CaseDetailModal } from './CaseDetailModal';
+import { fetchCohortStatistics } from '../../services/api';
 
 export function CaseList() {
-  const { welfareCases } = useAppState();
+  const { welfareCases, checkIns } = useAppState();
   const [selectedTier, setSelectedTier] = useState('all');
   const [activeCase, setActiveCase] = useState(null);
+  const [cohortStats, setCohortStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCohortStats = async () => {
+      try {
+        const stats = await fetchCohortStatistics();
+        setCohortStats(stats);
+      } catch (err) {
+        console.error('Failed to load cohort statistics:', err);
+        // Fallback to mock data if API fails
+        setCohortStats({
+          total_personnel: 1200,
+          unit_name: "CRPF 144 Bn",
+          force_type_distribution: {
+            "counter_insurgency": 480,
+            "border_guarding": 360,
+            "public_order": 240,
+            "static_guarding": 120
+          }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCohortStats();
+  }, []);
 
   const filteredCases = welfareCases.filter(c => {
     if (selectedTier !== 'all' && c.tier !== selectedTier) return false;
@@ -27,6 +56,24 @@ export function CaseList() {
   const criticalCount = welfareCases.filter(c => c.tier === 'critical').length;
   const elevatedCount = welfareCases.filter(c => c.tier === 'elevated').length;
 
+  // Calculate check-in completion percentage for the last 7 days
+  const computeCheckInCompletion = (checkIns) => {
+    if (!checkIns || checkIns.length === 0) return 0;
+
+    const today = new Date();
+    const pastWeek = Array.from({length: 7}, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      return d.toISOString().split('T')[0];
+    });
+
+    const checkInDates = new Set(checkIns.map(c => c.date));
+    const completedDays = pastWeek.filter(date => checkInDates.has(date)).length;
+    return Math.round((completedDays / pastWeek.length) * 100);
+  };
+
+  const checkInCompletion = computeCheckInCompletion(checkIns);
+
   return (
     <div className="space-y-6">
       
@@ -34,14 +81,20 @@ export function CaseList() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl bg-[#111A2B] border border-[#1E2D4A] space-y-1">
           <span className="text-[10px] text-slate-400 uppercase font-medium">Active Monitored</span>
-          <div className="text-xl font-bold text-white">144</div>
-          <span className="text-[11px] text-slate-400">CRPF 144 Bn Battalion</span>
+          <div className="text-xl font-bold text-white">
+            {loading ? '...' : cohortStats?.total_personnel || 0}
+          </div>
+          <span className="text-[11px] text-slate-400">
+            {loading ? 'Loading...' : cohortStats?.unit_name || 'Unknown Unit'}
+          </span>
         </div>
 
         <div className="p-4 rounded-xl bg-[#111A2B] border border-[#1E2D4A] space-y-1">
           <span className="text-[10px] text-slate-400 uppercase font-medium">Check-in Completion</span>
-          <div className="text-xl font-bold text-emerald-400">92.4%</div>
-          <span className="text-[11px] text-slate-400">Past 24 hours</span>
+          <div className="text-xl font-bold text-emerald-400">
+            {loading ? '...' : checkInCompletion}%
+          </div>
+          <span className="text-[11px] text-slate-400">Past 7 days</span>
         </div>
 
         <div className="p-4 rounded-xl bg-[#111A2B] border border-[#1E2D4A] space-y-1">
@@ -52,7 +105,7 @@ export function CaseList() {
 
         <div className="p-4 rounded-xl bg-[#111A2B] border border-[#1E2D4A] space-y-1">
           <span className="text-[10px] text-slate-400 uppercase font-medium">Requiring Attention</span>
-          <div className="text-xl font-bold text-rose-400">{criticalCount || 2}</div>
+          <div className="text-xl font-bold text-rose-400">{criticalCount}</div>
           <span className="text-[11px] text-slate-400">Triage priority</span>
         </div>
       </div>

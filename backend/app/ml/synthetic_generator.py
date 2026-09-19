@@ -67,6 +67,7 @@ class SyntheticCohortManager:
         np.random.seed(seed)
         random.seed(seed)
         self.personnel_df: pd.DataFrame = pd.DataFrame()
+        self.pseudonym_index: Dict[str, dict] = {}
         self.cohort_stats: Dict[str, Dict] = {}
 
     def generate_cohort(self, n_samples: int = 1200) -> pd.DataFrame:
@@ -174,8 +175,23 @@ class SyntheticCohortManager:
             ))
 
         self.personnel_df = pd.DataFrame(records)
+        self.pseudonym_index = {r["pseudonym_id"]: r for r in records}
         self._calculate_cohort_baselines()
         return self.personnel_df
+
+    def get_personnel_by_pseudonym(self, pseudonym_id: str) -> dict:
+        """O(1) dictionary retrieval for device risk-band queries."""
+        if pseudonym_id in self.pseudonym_index:
+            return self.pseudonym_index[pseudonym_id]
+        if not self.personnel_df.empty:
+            match = self.personnel_df[self.personnel_df["pseudonym_id"] == pseudonym_id]
+            if not match.empty:
+                rec = match.iloc[0].to_dict()
+                self.pseudonym_index[pseudonym_id] = rec
+                return rec
+            # Fallback to random sample record for demonstration
+            return self.personnel_df.iloc[0].to_dict()
+        return {}
 
     def _calculate_cohort_baselines(self):
         """Calculates cohort-specific median and MAD for unit-relative calibration."""

@@ -6,13 +6,14 @@ Allows auditors, DPOs, and technical reviewers to:
 3. Simulate tampering to observe the cryptographic chain alarm trigger.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from app.core.audit_chain import audit_ledger
+from app.core.auth import require_roles
 
 router = APIRouter(prefix="/v1/audit", tags=["Audit & Trust Verification"])
 
 @router.get("/logs")
-def get_audit_logs(limit: int = 50):
+def get_audit_logs(limit: int = Query(50, ge=1, le=500), _user: dict = Depends(require_roles("AUDITOR"))):
     """Returns the latest append-only audit blocks."""
     chain = audit_ledger.get_chain(limit=limit)
     return {
@@ -21,7 +22,7 @@ def get_audit_logs(limit: int = 50):
     }
 
 @router.get("/verify")
-def verify_audit_chain():
+def verify_audit_chain(_user: dict = Depends(require_roles("AUDITOR"))):
     """
     Cryptographically recalculates and verifies every block's SHA-256 hash and pointer.
     """
@@ -34,7 +35,7 @@ def verify_audit_chain():
     }
 
 @router.post("/tamper-simulation")
-def simulate_tampering(block_seq: int = Query(1, description="Sequence number of block to tamper with")):
+def simulate_tampering(block_seq: int = Query(1, ge=1, description="Sequence number of block to tamper with"), _user: dict = Depends(require_roles("AUDITOR"))):
     """
     Demo utility: Mutates metadata in a past block without re-hashing,
     demonstrating that the audit verifier immediately catches the breach.
@@ -55,25 +56,8 @@ def simulate_tampering(block_seq: int = Query(1, description="Sequence number of
     }
 
 @router.post("/restore-chain")
-def restore_chain():
+def restore_chain(_user: dict = Depends(require_roles("AUDITOR"))):
     """Restores/re-initializes the audit ledger to clean valid state for demos."""
-    global audit_ledger
-    # Re-calculate correct hashes for all blocks
-    for i in range(1, len(audit_ledger._chain)):
-        target = audit_ledger._chain[i]
-        # Clean tampered flag
-        clean_meta = {k: v for k, v in target.metadata.items() if k != "TAMPERED_FLAG"}
-        recalculated = audit_ledger._calculate_block_hash(
-            seq=target.seq,
-            timestamp=target.timestamp,
-            actor_role=target.actor_role,
-            actor_id_hash=target.actor_id_hash,
-            action=target.action,
-            case_id=target.case_id,
-            pseudonym_id=target.pseudonym_id,
-            metadata=clean_meta,
-            prev_hash=audit_ledger._chain[i-1].block_hash
-        )
-        audit_ledger._chain[i] = recalculated
+    audit_ledger.restore_chain()
     
     return {"status": "chain_restored_and_verified", "is_valid": True}

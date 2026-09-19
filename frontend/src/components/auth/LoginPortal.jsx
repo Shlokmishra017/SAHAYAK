@@ -67,12 +67,12 @@ export function LoginPortal() {
         
         {/* Government & Platform Identity */}
         <div className="text-center space-y-3">
-          <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
-            Government of India • CAPF & Defense Welfare Architecture
+          <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400 font-semibold">
+            Government of India / CAPF & Defense Welfare Architecture
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-1">
-            <div className="w-11 h-11 rounded-xl bg-[#162238] border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-[#f4e9e4] border border-[#d9b8ab] flex items-center justify-center text-[#95432d] shrink-0">
               <Shield className="w-6 h-6" />
             </div>
             <div className="text-left">
@@ -103,7 +103,7 @@ export function LoginPortal() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="e.g., Vikram Singh"
-                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-colors"
+                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#b9573a] transition-colors"
                 required
               />
             </div>
@@ -119,7 +119,7 @@ export function LoginPortal() {
                 value={serviceId}
                 onChange={(e) => setServiceId(e.target.value)}
                 placeholder="e.g., CAPF-849201"
-                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-colors uppercase"
+                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-[#b9573a] transition-colors uppercase"
                 required
               />
             </div>
@@ -135,7 +135,7 @@ export function LoginPortal() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition-colors"
+                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#b9573a] transition-colors"
                 required
               />
             </div>
@@ -151,15 +151,15 @@ export function LoginPortal() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl font-semibold text-xs text-slate-900 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 transition-colors flex items-center justify-center gap-2 mt-3 cursor-pointer"
+              className="w-full py-3 px-4 rounded-xl font-semibold text-xs text-white bg-[#b9573a] hover:bg-[#95432d] active:bg-[#713722] transition-colors flex items-center justify-center gap-2 mt-3 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
             >
               {isLoading ? (
                 <span>Validating Service Identity...</span>
               ) : (
                 <>
-                  <KeyRound className="w-4 h-4 text-slate-900" />
+                  <KeyRound className="w-4 h-4 text-white" />
                   <span>Authenticate Securely</span>
-                  <ArrowRight className="w-4 h-4 text-slate-900" />
+                  <ArrowRight className="w-4 h-4 text-white" />
                 </>
               )}
             </button>

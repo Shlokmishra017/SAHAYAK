@@ -8,6 +8,7 @@ import { CohortHeatmap } from './components/command/CohortHeatmap';
 import { HashChainInspector } from './components/audit/HashChainInspector';
 import { ModelComparisonDemo } from './components/audit/ModelComparisonDemo';
 import { ZeroTrustInspector } from './components/audit/ZeroTrustInspector';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 function AuthenticatedApp() {
   const { activeRole } = useAppState();
@@ -27,36 +28,44 @@ function AuthenticatedApp() {
   }, [activeRole]);
 
   return (
-    <AppShell 
-      activeSection={activeSection} 
+    <AppShell
+      activeSection={activeSection}
       onSectionChange={setActiveSection}
     >
       {/* Z0 Personnel Wellness Suite */}
       {activeRole === 'device' && (
-        <PersonnelWellnessDashboard externalSection={activeSection} />
+        <ErrorBoundary>
+          <PersonnelWellnessDashboard externalSection={activeSection} />
+        </ErrorBoundary>
       )}
 
       {/* Z1 Welfare Officer Triage Core */}
       {activeRole === 'welfare' && (
-        <div className="space-y-6">
-          <CaseList />
-        </div>
+        <ErrorBoundary>
+          <div className="space-y-6">
+            <CaseList />
+          </div>
+        </ErrorBoundary>
       )}
 
       {/* Commander Strategic Layer */}
       {activeRole === 'command' && (
-        <div className="space-y-6">
-          <CohortHeatmap externalSection={activeSection} />
-        </div>
+        <ErrorBoundary>
+          <div className="space-y-6">
+            <CohortHeatmap externalSection={activeSection} />
+          </div>
+        </ErrorBoundary>
       )}
 
       {/* Auditor & Cryptographic Trust Portal */}
       {activeRole === 'audit' && (
-        <div className="space-y-6">
-          {activeSection === 'chain' && <HashChainInspector />}
-          {activeSection === 'comparison' && <ModelComparisonDemo />}
-          {activeSection === 'zerotrust' && <ZeroTrustInspector />}
-        </div>
+        <ErrorBoundary>
+          <div className="space-y-6">
+            {activeSection === 'chain' && <HashChainInspector />}
+            {activeSection === 'comparison' && <ModelComparisonDemo />}
+            {activeSection === 'zerotrust' && <ZeroTrustInspector />}
+          </div>
+        </ErrorBoundary>
       )}
     </AppShell>
   );

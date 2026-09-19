@@ -9,6 +9,7 @@ Re-identification requires two concurrent authorized credentials:
 Every break-glass invocation creates a permanent SHA-256 audit entry.
 """
 
+import os
 from typing import Dict, Optional, Tuple
 from pydantic import BaseModel
 from app.core.audit_chain import audit_ledger
@@ -38,13 +39,31 @@ class RealIdentityProfile(BaseModel):
 class IdentityBroker:
     # Simulated authoritative identity registry (air-gapped from Z1 in real life)
     _REGISTRY: Dict[str, RealIdentityProfile] = {}
-    
-    # Authorized custodian mock credentials
-    _AUTHORIZED_CUSTODIANS = {
-        "WO_7742": {"role": "welfare_officer", "pin": "9481"},
-        "MO_3109": {"role": "medical_officer", "pin": "6205"},
-        "ADJ_102": {"role": "adjutant", "pin": "8821"},
-    }
+
+    # Authorized custodian credentials from environment variables
+    _AUTHORIZED_CUSTODIANS: Dict[str, Dict[str, str]] = {}
+
+    @classmethod
+    def _load_custodians(cls):
+        """Load authorized custodians from environment variables."""
+        # Define expected custodians and their environment variable prefixes
+        custodian_defs = [
+            ("welfare_officer", "WELFARE_OFFICER"),
+            ("medical_officer", "MEDICAL_OFFICER"),
+            ("adjutant", "ADJUTANT")
+        ]
+
+        for role, prefix in custodian_defs:
+            custodian_id = os.getenv(f"{prefix}_ID")
+            custodian_pin = os.getenv(f"{prefix}_PIN")
+
+            if not custodian_id or not custodian_pin:
+                raise ValueError(
+                    f"Missing required environment variables for {role}: "
+                    f"{prefix}_ID and {prefix}_PIN must be set"
+                )
+
+            cls._AUTHORIZED_CUSTODIANS[custodian_id] = {"role": role, "pin": custodian_pin}
 
     @classmethod
     def register_personnel(cls, profile: RealIdentityProfile):
@@ -55,6 +74,10 @@ class IdentityBroker:
         """
         Executes dual-custodian validation.
         """
+        # Ensure custodians are loaded
+        if not cls._AUTHORIZED_CUSTODIANS:
+            cls._load_custodians()
+
         # Validate Custodian 1
         c1 = cls._AUTHORIZED_CUSTODIANS.get(req.custodian_1_id)
         if not c1 or c1["role"] != req.custodian_1_role or c1["pin"] != req.custodian_1_pin:

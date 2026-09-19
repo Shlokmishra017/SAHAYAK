@@ -85,7 +85,7 @@ class CohortHeatmapItem(BaseModel):
     is_complementary_suppressed: bool = False
     suppression_reason: Optional[str] = None
     avg_fatigue_index: Optional[float] = None
-    risk_distribution: Optional[Dict[str, int]] = None
+    risk_distribution: Optional[Dict[str, Optional[int]]] = None
     workload_score: Optional[float] = None
     rotation_recommendation: Optional[str] = None
 

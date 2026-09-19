@@ -13,6 +13,8 @@ from sklearn.ensemble import IsolationForest
 class CohortCohesionAnalyzer:
     def __init__(self):
         self.iso_forest = IsolationForest(contamination=0.15, random_state=42)
+        self._cached_results: List[Dict] = []
+        self._cached_df_len: int = -1
 
     def analyze_sub_units(self, personnel_df: pd.DataFrame) -> List[Dict]:
         """
@@ -20,6 +22,9 @@ class CohortCohesionAnalyzer:
         """
         if personnel_df.empty:
             return []
+
+        if len(personnel_df) == self._cached_df_len and self._cached_results:
+            return self._cached_results
 
         # Group by force_type / unit_name
         grouped = personnel_df.groupby("unit_name").agg({
@@ -76,6 +81,8 @@ class CohortCohesionAnalyzer:
                     ] if is_anomaly else []
                 })
 
+        self._cached_results = sub_unit_results
+        self._cached_df_len = len(personnel_df)
         return sub_unit_results
 
 cohesion_analyzer = CohortCohesionAnalyzer()

@@ -110,6 +110,7 @@ export function AppStateProvider({ children }) {
   };
 
   const logout = () => {
+    window.localStorage.removeItem('sahayak_access_token');
     setIsAuthenticated(false);
     showToast("Session terminated. Returned to authentication portal.", "info");
   };
@@ -180,12 +181,18 @@ export function AppStateProvider({ children }) {
   // Load backend data periodically or on role switch
   const refreshGlobalData = async () => {
     try {
-      const cases = await fetchWelfareCases();
-      setWelfareCases(cases);
-      const heatmap = await fetchCommanderHeatmap();
-      setCommanderHeatmap(heatmap);
-      const audit = await fetchAuditLedger();
-      setAuditLogs(audit.blocks || []);
+      if (activeRole === 'welfare') {
+        const cases = await fetchWelfareCases();
+        setWelfareCases(cases);
+      }
+      if (activeRole === 'command') {
+        const heatmap = await fetchCommanderHeatmap();
+        setCommanderHeatmap(heatmap);
+      }
+      if (activeRole === 'audit') {
+        const audit = await fetchAuditLedger();
+        setAuditLogs(audit.blocks || []);
+      }
     } catch (err) {
       console.error('Failed to sync global state:', err);
     }
@@ -194,6 +201,37 @@ export function AppStateProvider({ children }) {
   useEffect(() => {
     refreshGlobalData();
   }, [activeRole]);
+
+  // Send queued escalations when airplane mode is disabled (connectivity restored)
+  useEffect(() => {
+    if (!isAirplaneMode && escalationOutbox.length > 0) {
+      // Process queue sequentially with error tracking
+      const processQueue = async () => {
+        const failedIds = new Set();
+        const failedPayloads = [];
+
+        for (const payload of escalationOutbox) {
+          try {
+            await submitEscalation(payload);
+            showToast(`Escalation dispatched: ${payload.tier.toUpperCase()} tier`, "success");
+          } catch (err) {
+            console.error('Failed to send queued escalation:', err);
+            failedIds.add(payload.client_event_id);
+            failedPayloads.push(payload);
+            showToast(`Failed to dispatch escalation: ${payload.tier.toUpperCase()} tier`, "error");
+          }
+        }
+
+        // Atomic update: remove successfully sent payloads, keep failed ones for retry
+        setEscalationOutbox(prev => prev.filter(item => !failedIds.has(item.client_event_id)));
+
+        // If there are failed payloads, we could implement retry logic here
+        // For now, we keep them in the outbox for manual retry or next connectivity attempt
+      };
+
+      processQueue();
+    }
+  }, [isAirplaneMode, escalationOutbox]);
 
   // Add new local check-in
   const addCheckIn = (mood, sleepHours, fatigue) => {
@@ -233,6 +271,7 @@ export function AppStateProvider({ children }) {
     if (isAirplaneMode) {
       showToast("✈️ Airplane Mode Active: Transmission queued in on-device outbox.", "info");
       setEscalationOutbox(prev => [...prev, {
+        client_event_id: crypto.randomUUID(),
         pseudonym_id: pseudonymId,
         tier: localFusionResult.tier,
         reason_codes: ["RC_SUSTAINED_DEPLOYMENT", "RC_SLEEP_DEGRADATION_TREND"],
@@ -242,6 +281,7 @@ export function AppStateProvider({ children }) {
     }
 
     const payload = {
+      client_event_id: crypto.randomUUID(),
       pseudonym_id: pseudonymId,
       tier: localFusionResult.tier,
       origin: "device_fusion",
