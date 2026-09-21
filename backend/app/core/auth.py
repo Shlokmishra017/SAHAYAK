@@ -4,7 +4,6 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Iterable
 
 import jwt
 from fastapi import Depends, HTTPException, status

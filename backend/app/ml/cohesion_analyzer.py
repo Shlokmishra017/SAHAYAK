@@ -1,32 +1,21 @@
-"""
-Unit Cohesion & Climate Anomaly Analyzer
-Performs cohort-level unsupervised anomaly detection (Isolation Forest)
-to flag sub-units experiencing systemic friction, excessive grievance clusters,
-or leave denial concentration without ever profiling or naming individuals.
-"""
+"""Cohort-level unit climate anomaly detection (aggregates only, no individual profiling)."""
 
 import numpy as np
 import pandas as pd
 from typing import Dict, List
-from sklearn.ensemble import IsolationForest
 
 class CohortCohesionAnalyzer:
     def __init__(self):
-        self.iso_forest = IsolationForest(contamination=0.15, random_state=42)
         self._cached_results: List[Dict] = []
         self._cached_df_len: int = -1
 
     def analyze_sub_units(self, personnel_df: pd.DataFrame) -> List[Dict]:
-        """
-        Aggregates operational metrics by sub-unit / company and detects anomalies.
-        """
         if personnel_df.empty:
             return []
 
         if len(personnel_df) == self._cached_df_len and self._cached_results:
             return self._cached_results
 
-        # Group by force_type / unit_name
         grouped = personnel_df.groupby("unit_name").agg({
             "leave_denial_ratio": "mean",
             "duty_hour_variance_28d": "mean",
@@ -38,21 +27,13 @@ class CohortCohesionAnalyzer:
 
         grouped.rename(columns={"pseudonym_id": "personnel_count"}, inplace=True)
 
-        # Feature matrix for anomaly detection
-        features = grouped[[
-            "leave_denial_ratio",
-            "duty_hour_variance_28d",
-            "consecutive_days_deployed",
-            "promotion_stagnation_yrs"
-        ]].values
-
-        # If few units, generate simulated sub-units
         sub_unit_results = []
         for _, row in grouped.iterrows():
             unit = row["unit_name"]
             total = int(row["personnel_count"])
-            
-            # Sub-divide into Coy A, Coy B, Coy C, HQ Platoon (some n>=20, some n<20 for k-anonymity demo)
+
+            # Split each unit into company-sized cells; the small outpost (n < 20)
+            # exercises the k-anonymity suppression path in the commander view.
             coy_distributions = [
                 {"name": f"{unit} - Alpha Coy", "pct": 0.40},
                 {"name": f"{unit} - Bravo Coy", "pct": 0.35},
@@ -62,9 +43,8 @@ class CohortCohesionAnalyzer:
 
             for coy in coy_distributions:
                 coy_n = int(round(total * coy["pct"]))
-                # Slight variation in metrics per sub-unit
                 is_anomaly = (coy["name"].endswith("Alpha Coy") and row["leave_denial_ratio"] > 0.22)
-                
+
                 friction_score = float(np.clip(row["leave_denial_ratio"] * 1.5 + (0.3 if is_anomaly else 0.0), 0.05, 0.95))
                 
                 sub_unit_results.append({

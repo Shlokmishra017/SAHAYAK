@@ -1,8 +1,3 @@
-/**
- * Sahayak API Service Bridge
- * Connects to the FastAPI backend, with seamless client-side simulated state fallback.
- */
-
 const API_BASE = '/v1';
 
 function authHeaders(extra = {}) {

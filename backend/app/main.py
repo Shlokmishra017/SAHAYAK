@@ -1,11 +1,8 @@
-"""
-Sahayak Personnel Welfare Intelligence Platform - Backend Entrypoint
-"""
+"""Sahayak backend entrypoint."""
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -25,7 +22,6 @@ from app.core.auth import get_current_user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure database tables are created
     init_db()
 
     if not settings.demo_mode:
@@ -34,7 +30,6 @@ async def lifespan(app: FastAPI):
         print("[*] Sahayak Backend shutting down...")
         return
 
-    # Startup: Generate cohort, train HR risk model, initialize demo cases
     print("[*] Initializing Sahayak Synthetic Cohort Engine (1,200 longitudinal personnel)...")
     df = cohort_manager.generate_cohort(n_samples=1200)
     print(f"[+] Generated {len(df)} personnel across 4 operational contexts.")
@@ -43,13 +38,10 @@ async def lifespan(app: FastAPI):
     hr_risk_engine.train_model(df)
     print("[+] Model trained & robust z-score calibration active.")
 
-    # Seed initial realistic cases for the Welfare Officer queue demo (bounds-safe)
     high_stress = df[df["latent_stress_index"] > 0.65]
     if len(high_stress) == 0:
-        # If no high stress, take top 4 by latent_stress_index (or empty if df is empty)
         seed_samples = df.sort_values(by="latent_stress_index", ascending=False).head(min(4, len(df)))
     else:
-        # Safely cap the number of samples to the available high_stress count
         seed_samples = high_stress.head(min(4, len(high_stress)))
     tiers = ["critical", "elevated", "elevated", "emerging"]
     reasons_list = [
@@ -90,7 +82,7 @@ async def lifespan(app: FastAPI):
 
     print("[+] Seeded initial demonstration cases in Welfare Case Store.")
     yield
-    print("[*] Sahayak Backend shuttingting down...")
+    print("[*] Sahayak Backend shutting down...")
 
 app = FastAPI(
     title="Sahayak AI - Personnel Welfare Intelligence Platform",
@@ -99,7 +91,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -113,7 +104,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
 app.include_router(auth_router)
 app.include_router(device_router, dependencies=[Depends(get_current_user)])
 app.include_router(welfare_router, dependencies=[Depends(get_current_user)])

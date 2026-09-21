@@ -140,7 +140,6 @@ export function AuditLedgerView() {
         }
       />
 
-      {/* Verification Status Banner */}
       <div
         className={`mb-6 rounded-2xl border p-5 transition-colors ${
           isValid
@@ -191,7 +190,6 @@ export function AuditLedgerView() {
         </div>
       </div>
 
-      {/* Blocks List */}
       <div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
         <div className="mb-5 flex items-center justify-between border-b border-[#edf1ef] pb-4">
           <div>
@@ -243,7 +241,6 @@ export function AuditLedgerView() {
                   </div>
                 </div>
 
-                {/* Expanded Details */}
                 {isExpanded && (
                   <div className="mt-4 pt-3 border-t border-[#edf1ef] space-y-2 text-[11px] animate-fade-in font-mono">
                     <div>

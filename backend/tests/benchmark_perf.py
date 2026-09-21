@@ -12,7 +12,6 @@ def benchmark():
     app.state.limiter.enabled = False
     welfare_limiter.enabled = False
     with TestClient(app) as client:
-        # Auth login to get tokens
         res_wo = client.post("/v1/auth/login", json={"full_name": "Meera Nair", "service_id": "WO-7742", "password": "ServicePass@2026"})
         token_wo = res_wo.json()["access_token"]
         h_wo = {"Authorization": f"Bearer {token_wo}"}
@@ -27,7 +26,6 @@ def benchmark():
 
         N = 100
 
-        # Benchmark 1: Device Risk Band (O(1) lookup vs N iterations)
         t0 = time.perf_counter()
         for _ in range(N):
             r = client.get("/v1/device/risk-band/f83a1290-7d1a-4c22-98ab-3011982bca81", headers=h_z0)
@@ -35,7 +33,6 @@ def benchmark():
         t1 = time.perf_counter()
         device_ms = ((t1 - t0) / N) * 1000
 
-        # Benchmark 2: Welfare Cases list (No N+1)
         t0 = time.perf_counter()
         for _ in range(N):
             r = client.get("/v1/welfare/cases", headers=h_wo)
@@ -43,7 +40,6 @@ def benchmark():
         t1 = time.perf_counter()
         welfare_ms = ((t1 - t0) / N) * 1000
 
-        # Benchmark 3: Command Heatmap (Memoized sub-unit aggregation)
         t0 = time.perf_counter()
         for _ in range(N):
             r = client.get("/v1/command/heatmap", headers=h_cmd)

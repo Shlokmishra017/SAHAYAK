@@ -1,14 +1,7 @@
-"""
-Commander Dashboard API (Z1 Command Layer)
-Aggregated views only.
-Guarantees:
-- Enforces strict k-anonymity (n >= 20) with complementary suppression.
-- ZERO access to individual scores or case lists (case:read denied for commander role).
-- Provides operational fatigue heatmaps, cohesion climate anomaly indices, and rotation planning.
-"""
+"""Commander strategy layer: aggregate-only heatmaps and cohesion alerts (k-anonymity enforced)."""
 
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
+from typing import List
+from fastapi import APIRouter, Depends
 from app.models.schemas import CohortHeatmapItem
 from app.ml.synthetic_generator import cohort_manager
 from app.ml.cohesion_analyzer import cohesion_analyzer
@@ -23,21 +16,15 @@ def get_cohort_heatmaps(
     simulate_privacy_violation: bool = False,
     user: dict = Depends(require_roles("Z1_COMMANDER")),
 ):
-    """
-    Returns aggregated battalion/company heatmaps.
-    Enforces k-anonymity (n >= 20) and complementary cell suppression.
-    """
     df = cohort_manager.personnel_df
     if df.empty:
         return []
 
-    # Analyze sub-units
     sub_units = cohesion_analyzer.analyze_sub_units(df)
 
     raw_items = []
     for s in sub_units:
         n = s["total_personnel"]
-        # Calculate fatigue and risk buckets
         avg_fatigue = round(float(s["climate_friction_score"] * 10.0), 1)
         
         low_count = int(round(n * (1.0 - s["climate_friction_score"]) * 0.7))
@@ -45,7 +32,6 @@ def get_cohort_heatmaps(
         elev_count = int(round(n * (s["climate_friction_score"] * 0.6)))
         crit_count = max(0, n - (low_count + mod_count + elev_count))
 
-        # Rotation recommendation
         recommendation = "Standard Routine Deployment"
         if avg_fatigue > 6.5:
             recommendation = "High Priority: Plan 14-day Rest Stand-down Cycle"
@@ -66,7 +52,6 @@ def get_cohort_heatmaps(
             "rotation_recommendation": recommendation
         }
 
-        # Apply k-anonymity gate
         enforced = enforce_k_anonymity_cohort(
             cohort_name=s["sub_unit_name"],
             total_personnel=n,
@@ -74,10 +59,8 @@ def get_cohort_heatmaps(
         )
         raw_items.append(enforced)
 
-    # Apply complementary suppression to protect small cohorts from algebraic subtraction
     processed_items = apply_complementary_suppression("Command General", raw_items)
 
-    # Log access in audit chain
     audit_ledger.append_log(
         actor_role="commander",
         actor_id=user["sub"],
@@ -105,10 +88,6 @@ def get_cohort_heatmaps(
 
 @router.get("/cohesion-anomalies")
 def get_cohesion_anomalies(user: dict = Depends(require_roles("Z1_COMMANDER"))):
-    """
-    Surfaces cohort-level climate anomalies (toxic sub-unit friction, leave denial spikes)
-    without naming ANY individual.
-    """
     df = cohort_manager.personnel_df
     if df.empty:
         return []
@@ -128,11 +107,6 @@ def get_cohesion_anomalies(user: dict = Depends(require_roles("Z1_COMMANDER"))):
 
 @router.get("/cohort-statistics")
 def get_cohort_statistics(user: dict = Depends(require_roles("Z1_COMMANDER", "Z1_WELFARE_OFFICER", "Z0_PERSONNEL", "AUDITOR"))):
-    """
-    Returns basic cohort statistics for frontend dashboard.
-    Provides total personnel count and unit information.
-    This endpoint is accessible to all roles for wellness overview statistics.
-    """
     df = cohort_manager.personnel_df
     if df.empty:
         return {
@@ -141,10 +115,8 @@ def get_cohort_statistics(user: dict = Depends(require_roles("Z1_COMMANDER", "Z1
             "force_type_distribution": {}
         }
 
-    # Count personnel by force type
     force_type_counts = df["force_type"].value_counts().to_dict()
 
-    # Log access in audit chain
     audit_ledger.append_log(
         actor_role="commander",
         actor_id=user["sub"],

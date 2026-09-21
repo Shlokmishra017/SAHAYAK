@@ -29,7 +29,6 @@ export function Sidebar({ casesCount = 0 }) {
 
   return (
     <aside className="hidden w-[248px] shrink-0 flex-col border-r border-[#dfe7e3] bg-[#fbfcfb] px-5 py-6 lg:flex">
-      {/* Brand */}
       <Link
         to={isWelfare ? '/welfare' : isCommand ? '/command' : isAudit ? '/audit' : '/wellness'}
         className="mb-11 flex items-center gap-3 px-2 transition-opacity hover:opacity-90"
@@ -51,7 +50,6 @@ export function Sidebar({ casesCount = 0 }) {
         </div>
       </Link>
 
-      {/* Role-Specific Workspace Navigation */}
       {isWelfare && (
         <NavGroup title="Workspace">
           <NavButton
@@ -126,7 +124,6 @@ export function Sidebar({ casesCount = 0 }) {
         </NavGroup>
       )}
 
-      {/* Governance & Guidance */}
       <NavGroup title="Governance">
         <NavButton
           active={pathname.startsWith('/guidance')}
@@ -137,7 +134,6 @@ export function Sidebar({ casesCount = 0 }) {
         </NavButton>
       </NavGroup>
 
-      {/* Help Card */}
       <div className="mt-auto rounded-2xl border border-[#dfe9e3] bg-[#f1f7f3] p-4">
         <div className="mb-3 flex size-8 items-center justify-center rounded-lg bg-white text-[#28725e]">
           <CircleHelp size={16} />

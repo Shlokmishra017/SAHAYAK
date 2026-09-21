@@ -51,7 +51,6 @@ export function InterventionsView() {
         }
       />
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Stat
           label="This month"
@@ -73,7 +72,6 @@ export function InterventionsView() {
         />
       </div>
 
-      {/* Recent Records */}
       <div className="mt-6 rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-serif text-[21px] font-semibold text-[#1c3b33]">
@@ -118,7 +116,6 @@ export function InterventionsView() {
         </div>
       </div>
 
-      {/* Intervention Modal */}
       {modalOpen && (
         <InterventionModal
           isOpen={modalOpen}

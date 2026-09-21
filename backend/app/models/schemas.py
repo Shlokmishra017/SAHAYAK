@@ -1,11 +1,7 @@
-"""
-API Contracts & Request/Response Schemas
-"""
+"""API request/response contracts."""
+from typing import Dict, List, Optional
+from pydantic import BaseModel
 
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field
-
-# Device (Z0)
 class DeviceAttestationRequest(BaseModel):
     device_fingerprint: str
     app_version: str
@@ -19,26 +15,25 @@ class DeviceAttestationResponse(BaseModel):
 class RiskBandResponse(BaseModel):
     pseudonym_id: str
     as_of: str
-    h_band: int  # 0 to 4
+    h_band: int
     reason_codes: List[str]
-    thresholds: Dict[str, float]  # {"tau1": 0.45, "tau2": 0.65, "tau3": 0.85}
+    thresholds: Dict[str, float]
     unit_baseline_median: float
     model_version: str
 
 class EscalationPayload(BaseModel):
     pseudonym_id: str
-    tier: str  # "emerging" | "elevated" | "critical"
-    origin: str = "device_fusion"  # "device_fusion" | "hr_channel" | "self_referral"
+    tier: str
+    origin: str = "device_fusion"
     reason_codes: List[str]
     detected_at: str
     model_version: str = "sahayak-edge-v1.2"
 
 class SelfReferralRequest(BaseModel):
     pseudonym_id: str
-    support_type_preference: str  # "counselor" | "buddy" | "medical" | "general_welfare"
+    support_type_preference: str
     request_timestamp: str
 
-# Welfare Officer (Z1)
 class CaseFilterParams(BaseModel):
     tier: Optional[str] = None
     status: Optional[str] = None
@@ -47,32 +42,31 @@ class CaseFilterParams(BaseModel):
 class WelfareCaseSummary(BaseModel):
     case_id: str
     pseudonym_id: str
-    tier: str  # "emerging" | "elevated" | "critical"
+    tier: str
     origin: str
     reason_codes: List[str]
     opened_at: str
     closed_at: Optional[str] = None
-    status: str  # "open" | "in_review" | "intervention_active" | "closed"
+    status: str
     unit_context: str
     h_band: int
     has_acute_marker: bool = False
-    officer_label: Optional[str] = None  # "true_concern" | "false_alarm" | "inconclusive"
+    officer_label: Optional[str] = None
     interventions_count: int = 0
 
 class InterventionCreate(BaseModel):
     case_id: str
-    kind: str  # "peer_buddy_nudge" | "welfare_counseling" | "medical_leave_recommended" | "duty_stand_down" | "family_liaison"
+    kind: str
     performed_by_role: str = "welfare_officer"
     officer_id: str
-    notes_sanitized: str  # Non-clinical welfare notes
+    notes_sanitized: str
 
 class LabelFeedbackCreate(BaseModel):
     case_id: str
     officer_id: str
-    label: str  # "true_concern" | "false_alarm" | "inconclusive"
+    label: str
     feedback_notes: Optional[str] = None
 
-# Commander (Z1)
 class HeatmapQuery(BaseModel):
     force_type: Optional[str] = None
 
@@ -89,7 +83,7 @@ class CohortHeatmapItem(BaseModel):
     workload_score: Optional[float] = None
     rotation_recommendation: Optional[str] = None
 
-# Erasure Request (DPDP Compliance)
+# DPDP right-to-erasure request.
 class ErasureRequest(BaseModel):
     pseudonym_id: str
     confirmation_token: str

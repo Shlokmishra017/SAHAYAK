@@ -1,12 +1,7 @@
-"""
-Cryptographic SHA-256 Hash Chain Audit Ledger
-Provides an append-only, tamper-evident audit record for every access, case view,
-intervention logging, and dual-custodian re-identification action.
-"""
+"""Append-only SHA-256 hash-chained audit ledger."""
 
 import hashlib
 import json
-import time
 from sqlalchemy import select
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
@@ -16,9 +11,9 @@ from app.core.database import AuditBlockRecord, SessionLocal, init_db
 class AuditBlock(BaseModel):
     seq: int
     timestamp: str
-    actor_role: str        # e.g., "welfare_officer", "medical_officer", "commander", "system"
-    actor_id_hash: str     # SHA-256 hash of officer ID (no plain identity in logs)
-    action: str            # e.g., "CASE_ACCESSED", "INTERVENTION_LOGGED", "BREAK_GLASS_DEANONYMIZE", "FEEDBACK_LABELED"
+    actor_role: str
+    actor_id_hash: str
+    action: str
     case_id: Optional[str] = None
     pseudonym_id: Optional[str] = None
     metadata: Dict = Field(default_factory=dict)
@@ -129,7 +124,6 @@ class AuditChainEngine:
         pseudonym_id: Optional[str] = None,
         metadata: Optional[Dict] = None
     ) -> AuditBlock:
-        """Appends a new immutable block to the chain."""
         actor_id_hash = hashlib.sha256(actor_id.encode("utf-8")).hexdigest()
         prev_hash = self._chain[-1].block_hash if self._chain else self.GENESIS_HASH
         seq = len(self._chain)
@@ -171,25 +165,18 @@ class AuditChainEngine:
         return block
 
     def get_chain(self, limit: int = 100) -> List[AuditBlock]:
-        """Returns recent chain blocks."""
         return self._chain[-limit:]
 
     def verify_integrity(self) -> Tuple[bool, Optional[str], Optional[int]]:
-        """
-        Cryptographically verifies every block in the ledger.
-        Returns: (is_valid, error_reason, broken_sequence_number)
-        """
         if not self._chain:
             return False, "Chain is empty", None
 
-        # Verify Genesis
         if self._chain[0].prev_hash != self.GENESIS_HASH:
             return False, "Genesis block has invalid prev_hash", 0
 
         for i in range(len(self._chain)):
             block = self._chain[i]
-            
-            # Recalculate hash
+
             expected_block = self._calculate_block_hash(
                 seq=block.seq,
                 timestamp=block.timestamp,
@@ -213,10 +200,8 @@ class AuditChainEngine:
         return True, "All cryptographic blocks verified intact", None
 
     def tamper_demo(self, block_seq: int) -> bool:
-        """Utility for demonstration to simulate an unauthorized DB alteration."""
         if 0 < block_seq < len(self._chain):
             target = self._chain[block_seq]
-            # Mutate metadata without re-hashing
             tampered_meta = dict(target.metadata)
             tampered_meta["TAMPERED_FLAG"] = "Malicious edit attempted"
             self._chain[block_seq] = AuditBlock(
@@ -229,7 +214,7 @@ class AuditChainEngine:
                 pseudonym_id=target.pseudonym_id,
                 metadata=tampered_meta,
                 prev_hash=target.prev_hash,
-                block_hash=target.block_hash  # Old hash now mismatched
+                block_hash=target.block_hash
             )
             if self._persist:
                 with SessionLocal() as db:
@@ -241,7 +226,6 @@ class AuditChainEngine:
         return False
 
     def restore_chain(self) -> bool:
-        """Repair the demo chain and persist the corrected block payloads."""
         if not self._chain:
             return False
         for i in range(1, len(self._chain)):
@@ -275,5 +259,4 @@ class AuditChainEngine:
                 db.commit()
         return True
 
-# Global Singleton instance
 audit_ledger = AuditChainEngine(persist=True)

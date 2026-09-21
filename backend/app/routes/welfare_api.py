@@ -1,11 +1,4 @@
-"""
-Welfare Officer Dashboard API (Z1 Welfare Core)
-Handles:
-- Case list retrieval (only flagged personnel, no raw text, only whitelisted reason codes)
-- Single case inspection (logged into immutable audit chain on every view)
-- Welfare intervention logging (counseling, peer buddy nudge, stand-down, medical leave)
-- Weak-label feedback loop (officer labels 'true_concern' vs 'false_alarm' for model retraining)
-"""
+"""Welfare officer triage: flagged-case queue, case detail, interventions, officer labels."""
 
 import uuid
 from datetime import datetime, timezone
@@ -13,10 +6,6 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from app.core.config import settings
-
-router = APIRouter(prefix="/v1/welfare", tags=["Welfare Officer Core"])
-limiter = Limiter(key_func=get_remote_address)
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.models.schemas import (
@@ -30,6 +19,7 @@ from app.core.auth import require_roles
 from app.core.database import CaseRecord, InterventionRecord, case_dict, get_db, list_cases as db_list_cases
 
 router = APIRouter(prefix="/v1/welfare", tags=["Welfare Officer Core"])
+limiter = Limiter(key_func=get_remote_address)
 
 @router.get("/cases", response_model=List[WelfareCaseSummary])
 @limiter.limit("60/minute")
@@ -40,11 +30,6 @@ def list_cases(
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles("Z1_WELFARE_OFFICER")),
 ):
-    """
-    Retrieves flagged cases.
-    Every call to this endpoint is logged into the audit ledger.
-    """
-    # Pre-fetch intervention counts in a single query to eliminate N+1 overhead
     counts_stmt = (
         select(InterventionRecord.case_id, func.count(InterventionRecord.intervention_id))
         .group_by(InterventionRecord.case_id)
@@ -74,7 +59,6 @@ def list_cases(
             interventions_count=intervention_counts.get(c.case_id, 0)
         ))
 
-    # Audit log entry for case queue query
     audit_ledger.append_log(
         actor_role="welfare_officer",
         actor_id=user["sub"],
@@ -92,15 +76,10 @@ def get_case_detail(
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles("Z1_WELFARE_OFFICER")),
 ):
-    """
-    Retrieves full case details along with reason code descriptions.
-    Enforces audit logging.
-    """
     case = db.get(CaseRecord, case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Welfare case not found.")
 
-    # Audit log entry for viewing single case
     audit_ledger.append_log(
         actor_role="welfare_officer",
         actor_id=user["sub"],
@@ -115,7 +94,7 @@ def get_case_detail(
 
     return {
         "case": case_data,
-        "reason_metadata": [r.dict() for r in reason_meta],
+        "reason_metadata": [r.model_dump() for r in reason_meta],
         "interventions": case_data["interventions"]
     }
 
@@ -128,9 +107,6 @@ def log_intervention(
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles("Z1_WELFARE_OFFICER")),
 ):
-    """
-    Logs an intervention (e.g. Peer Buddy Nudge, Counseling, Duty Stand-down).
-    """
     case = db.get(CaseRecord, case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Welfare case not found.")
@@ -150,7 +126,6 @@ def log_intervention(
     case.status = "intervention_active"
     db.commit()
 
-    # Log in audit ledger
     audit_ledger.append_log(
         actor_role="welfare_officer",
         actor_id=user["sub"],
@@ -171,11 +146,6 @@ def submit_label_feedback(
     db: Session = Depends(get_db),
     user: dict = Depends(require_roles("Z1_WELFARE_OFFICER")),
 ):
-    """
-    Weak-label feedback loop.
-    Enables officers to mark 'true_concern', 'false_alarm', or 'inconclusive'.
-    This critical loop produces the dataset to iteratively calibrate the risk engine.
-    """
     case = db.get(CaseRecord, case_id)
     if not case:
         raise HTTPException(status_code=404, detail="Welfare case not found.")

@@ -95,7 +95,6 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Custodian 1 */}
                 <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                     <KeyRound className="w-3.5 h-3.5 text-slate-600" />
@@ -124,7 +123,6 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
                   <div className="text-[10px] text-slate-400">Demo PIN: 9481 (Capt. Meera Nair)</div>
                 </div>
 
-                {/* Custodian 2 */}
                 <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
                   <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
                     <span className="flex items-center gap-1.5">

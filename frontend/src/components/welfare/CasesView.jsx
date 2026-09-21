@@ -86,14 +86,12 @@ export function CasesView() {
       />
 
       <div className="rounded-2xl border border-[#dfe8e3] bg-white shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
-        {/* Filter bar & Search */}
         <div className="flex flex-col gap-3 border-b border-[#edf1ef] p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[#80918b]">
               All cases <span className="rounded-md bg-[#eaf3ed] px-1.5 py-0.5 text-[#397c68]">{filtered.length}</span>
             </div>
 
-            {/* Severity Tabs */}
             <div className="hidden sm:flex items-center gap-1 rounded-lg bg-[#f0f5f2] p-0.5 text-xs">
               {['all', 'critical', 'elevated', 'emerging'].map((sev) => (
                 <button
@@ -122,7 +120,6 @@ export function CasesView() {
           </div>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left">
             <thead className="bg-[#f8fbf9] text-[10px] uppercase tracking-[0.12em] text-[#8a9a94]">
@@ -201,7 +198,6 @@ export function CasesView() {
         </div>
       </div>
 
-      {/* Intervention Modal */}
       {interventionModalOpen && (
         <InterventionModal
           isOpen={interventionModalOpen}

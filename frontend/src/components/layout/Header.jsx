@@ -59,7 +59,6 @@ export function Header({ onSearch, searchQuery = '' }) {
 
   return (
     <header className="relative flex h-[74px] items-center justify-between border-b border-[#e3eae7] bg-[#fbfcfb] px-5 sm:px-8 lg:px-10">
-      {/* Left section: Breadcrumb / Mobile menu */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -82,7 +81,6 @@ export function Header({ onSearch, searchQuery = '' }) {
         </div>
       </div>
 
-      {/* Right section: Search, Notifications & User Pill */}
       <div className="flex items-center gap-3">
         {onSearch && (
           <div className="hidden rounded-lg border border-[#e0e8e4] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#49635b] sm:flex sm:items-center sm:gap-2">
@@ -105,7 +103,6 @@ export function Header({ onSearch, searchQuery = '' }) {
           <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[#d47a58]" />
         </button>
 
-        {/* User Pill with Persona Switching dropdown */}
         <div className="relative border-l border-[#e2e9e6] pl-3">
           <button
             onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
@@ -121,7 +118,6 @@ export function Header({ onSearch, searchQuery = '' }) {
             <ChevronDown size={14} className="text-[#8a9994] hidden sm:block" />
           </button>
 
-          {/* Profile Dropdown */}
           {profileDropdownOpen && (
             <div className="absolute right-0 top-12 z-40 w-72 rounded-2xl border border-[#dfe8e3] bg-white p-3 shadow-xl animate-fade-in">
               <div className="border-b border-[#edf1ef] pb-3 mb-2 px-2">
@@ -170,7 +166,6 @@ export function Header({ onSearch, searchQuery = '' }) {
         </div>
       </div>
 
-      {/* Mobile Nav Menu */}
       {mobileMenuOpen && (
         <div className="absolute left-4 right-4 top-[66px] z-30 rounded-2xl border border-[#dfe8e3] bg-white p-3 shadow-xl lg:hidden">
           {activeRole === 'welfare' && (

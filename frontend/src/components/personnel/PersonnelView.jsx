@@ -29,16 +29,13 @@ export function PersonnelView() {
   const [journalText, setJournalText] = useState('');
   const [isSubmittingCheckIn, setIsSubmittingCheckIn] = useState(false);
 
-  // Self referral
   const [supportPref, setSupportPref] = useState('buddy');
   const [isSelfReferring, setIsSelfReferring] = useState(false);
   const [selfReferralCaseId, setSelfReferralCaseId] = useState(null);
 
-  // Erasure
   const [isPurging, setIsPurging] = useState(false);
   const [purgeSuccess, setPurgeSuccess] = useState(false);
 
-  // Server risk band state
   const [serverBand, setServerBand] = useState(hBandInfo);
 
   useEffect(() => {
@@ -108,7 +105,6 @@ export function PersonnelView() {
         }
       />
 
-      {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Stat
           label="On-Device Wellness Score"
@@ -131,7 +127,6 @@ export function PersonnelView() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Daily Confidential Check-in */}
         <div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-serif text-[20px] font-semibold text-[#25443b]">
@@ -143,7 +138,6 @@ export function PersonnelView() {
           </div>
 
           <form onSubmit={handleSaveCheckIn} className="space-y-4">
-            {/* Mood rating */}
             <div>
               <label className="block text-[11px] font-bold text-[#587068] mb-1.5">
                 How are you feeling today?
@@ -173,7 +167,6 @@ export function PersonnelView() {
               </div>
             </div>
 
-            {/* Sleep hours */}
             <div>
               <div className="flex justify-between text-[11px] font-bold text-[#587068] mb-1.5">
                 <span>Hours of Rest / Sleep</span>
@@ -195,7 +188,6 @@ export function PersonnelView() {
               </div>
             </div>
 
-            {/* Confidential Reflection Journal */}
             <div>
               <label className="block text-[11px] font-bold text-[#587068] mb-1.5">
                 Confidential Journal / Voice Reflection
@@ -221,9 +213,7 @@ export function PersonnelView() {
           </form>
         </div>
 
-        {/* Support & Privacy Rights */}
         <div className="space-y-6">
-          {/* Discreet Support Request */}
           <div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
             <h2 className="font-serif text-[20px] font-semibold text-[#25443b] mb-1">
               Discreet Support Request
@@ -271,7 +261,6 @@ export function PersonnelView() {
             )}
           </div>
 
-          {/* Data Rights & Erasure (DPDP Act) */}
           <div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
             <h3 className="font-serif text-[18px] font-semibold text-[#25443b] mb-1">
               Data Rights & Erasure

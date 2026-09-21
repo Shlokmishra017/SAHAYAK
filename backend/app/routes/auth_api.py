@@ -1,7 +1,4 @@
-"""
-Authentication & RBAC Identity Service
-Validates service credentials and automatically resolves user role and security clearance.
-"""
+"""Service-credential login with automatic role resolution."""
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -25,7 +22,7 @@ class AuthUser(BaseModel):
     full_name: str
     rank: str
     unit: str
-    role: str  # "Z0_PERSONNEL" | "Z1_WELFARE_OFFICER" | "Z1_COMMANDER" | "AUDITOR"
+    role: str
     level_label: str
     clearance: str
     avatar: str
@@ -37,7 +34,7 @@ class LoginResponse(BaseModel):
     expires_in: int
     user: AuthUser
 
-# Authoritative Account Directory (Simulated DB)
+# Demo directory; unknown IDs are provisioned on the fly in demo mode.
 ACCOUNTS_DB: Dict[str, Dict] = {
     "CAPF-849201": {
         "service_id": "CAPF-849201",
@@ -88,15 +85,12 @@ for account in ACCOUNTS_DB.values():
 @limiter.limit("10/minute")
 def authenticate_user(request: Request, req: LoginRequest):
     svc_id = req.service_id.strip().upper()
-    
-    # Check if known service ID
     account = ACCOUNTS_DB.get(svc_id)
-    
+
     if not account and not settings.demo_mode:
         raise HTTPException(status_code=401, detail="Invalid service credentials")
 
     if not account:
-        # Fallback dynamic provisioning for any general service ID
         if svc_id.startswith("WO") or "WELFARE" in svc_id:
             role = "Z1_WELFARE_OFFICER"
             level = "Level 1 — Unit Welfare Officer Triage & Intervention Core"

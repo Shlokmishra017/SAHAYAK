@@ -221,7 +221,6 @@ export function GuidanceView() {
         }
       />
 
-      {/* 4 Guidance Cards */}
       <div className="grid gap-4 md:grid-cols-2">
         <GuideCard
           title="Starting a conversation"
@@ -253,7 +252,6 @@ export function GuidanceView() {
         />
       </div>
 
-      {/* Emergency Resources Card */}
       <div className="mt-6 rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
         <h3 className="font-serif text-[19px] font-semibold text-[#25443b] mb-2">
           Statutory Support & Tele-MANAS Hotline
@@ -274,7 +272,6 @@ export function GuidanceView() {
         </div>
       </div>
 
-      {/* Guidance Reader Modal */}
       {activeArticle && (
         <GuidanceReaderModal
           article={activeArticle}
@@ -328,7 +325,6 @@ function GuidanceReaderModal({ article, onClose }) {
         className="w-full max-w-[640px] max-h-[90vh] overflow-y-auto rounded-2xl border border-[#dbe8e1] bg-white p-6 sm:p-7 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Top */}
         <div className="flex items-start justify-between border-b border-[#edf1ef] pb-4">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-[#eaf5ef] text-[#286c58]">
@@ -356,7 +352,6 @@ function GuidanceReaderModal({ article, onClose }) {
           </button>
         </div>
 
-        {/* Subtitle & Summary */}
         <div className="mt-4">
           <p className="text-xs font-semibold text-[#3b554c]">{article.subtitle}</p>
           <p className="mt-1 text-xs leading-relaxed text-[#6f8079] bg-[#f8fbf9] p-3 rounded-xl border border-[#edf1ef]">
@@ -364,7 +359,6 @@ function GuidanceReaderModal({ article, onClose }) {
           </p>
         </div>
 
-        {/* Dos & Don'ts Checklist */}
         <div className="mt-5">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#8a9a94] mb-2.5">
             Operational Dos & Don'ts
@@ -403,7 +397,6 @@ function GuidanceReaderModal({ article, onClose }) {
           </div>
         </div>
 
-        {/* Structured Guidance Sections */}
         <div className="mt-5 space-y-3.5 border-t border-[#edf1ef] pt-4">
           <div className="text-[10px] font-bold uppercase tracking-wider text-[#8a9a94]">
             Detailed Procedure & Action Steps
@@ -420,7 +413,6 @@ function GuidanceReaderModal({ article, onClose }) {
           ))}
         </div>
 
-        {/* Emergency Helpline Reminder & Close */}
         <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-[#edf1ef] pt-4">
           <a
             href="tel:14416"

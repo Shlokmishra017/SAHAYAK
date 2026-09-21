@@ -23,7 +23,6 @@ class Settings:
 
 settings = Settings()
 
-# Validate JWT_SECRET is set and strong enough
 if not settings.jwt_secret:
     raise RuntimeError("JWT_SECRET environment variable must be set")
 if not settings.demo_mode and len(settings.jwt_secret) < 32:

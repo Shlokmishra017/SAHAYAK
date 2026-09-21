@@ -1,10 +1,5 @@
-/**
- * Local On-Device Wellness ML & Fusion Simulation (Z0 Device Zone)
- * Executes 100% client-side in the browser / mobile WebView.
- * Proves that raw text, audio, and continuous wellness scores NEVER egress the device.
- */
+// On-device wellness scoring (Z0). Raw text and continuous scores never leave the device.
 
-// Multilingual Distress & Fatigue Lexicon
 const MULTILINGUAL_LEXICON = {
   acute_crisis: [
     "suicide", "end my life", "cannot live", "no reason to live", "kill myself",
@@ -32,10 +27,6 @@ const MULTILINGUAL_LEXICON = {
   ]
 };
 
-/**
- * Analyzes journal text client-side.
- * Returns sentiment score [-1.0, 1.0], distress markers, and acute safety alert boolean.
- */
 export function analyzeJournalTextLocally(text) {
   if (!text || text.trim() === '') {
     return {
@@ -53,7 +44,6 @@ export function analyzeJournalTextLocally(text) {
   let isAcute = false;
   let somaticCount = 0;
 
-  // Check acute crisis markers
   for (const phrase of MULTILINGUAL_LEXICON.acute_crisis) {
     if (normalized.includes(phrase)) {
       isAcute = true;
@@ -63,7 +53,6 @@ export function analyzeJournalTextLocally(text) {
     }
   }
 
-  // Check high distress
   for (const phrase of MULTILINGUAL_LEXICON.high_distress) {
     if (normalized.includes(phrase)) {
       matches.push("Emotional Distress");
@@ -71,7 +60,6 @@ export function analyzeJournalTextLocally(text) {
     }
   }
 
-  // Check somatic fatigue
   for (const phrase of MULTILINGUAL_LEXICON.somatic_fatigue) {
     if (normalized.includes(phrase)) {
       somaticCount++;
@@ -80,14 +68,13 @@ export function analyzeJournalTextLocally(text) {
     }
   }
 
-  // Check positive markers
   for (const phrase of MULTILINGUAL_LEXICON.positive_resilience) {
     if (normalized.includes(phrase)) {
       score += 0.6;
     }
   }
 
-  // Normalization
+  // Scale by length so short and long entries score comparably.
   const words = normalized.split(/\s+/).length;
   const normalizedSentiment = Math.max(-1.0, Math.min(1.0, score / Math.max(1, words * 0.15)));
 
@@ -100,33 +87,23 @@ export function analyzeJournalTextLocally(text) {
   };
 }
 
-/**
- * Computes Exponential Moving Average (EWMA) of recent wellness check-ins.
- * Combines Mood (1-5), Sleep Hours (0-12), and Journal Sentiment (-1 to 1).
- */
 export function computeLocalWellnessScore(checkInsHistory) {
   if (!checkInsHistory || checkInsHistory.length === 0) {
     return { wScore: 0.35, trajectorySlope: 0, reasonCodes: [] };
   }
 
-  // Sort chronological
   const sorted = [...checkInsHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
-  
+
   let ewmaStress = 0.5;
-  const alpha = 0.35; // Smoothing factor
+  const alpha = 0.35;
   const reasonCodes = [];
 
   let sleepDeprivationStreak = 0;
   let lowMoodStreak = 0;
 
   sorted.forEach((item, idx) => {
-    // Convert 1-5 mood to 0.0-1.0 stress (5 = 0.0 stress, 1 = 1.0 stress)
     const moodStress = (5 - item.mood) / 4.0;
-    
-    // Convert sleep hours to stress (ideal 7-8h -> 0 stress; <=4h -> 1.0 stress)
     const sleepStress = Math.max(0, Math.min(1, (7.5 - item.sleepHours) / 4.0));
-    
-    // Journal sentiment component
     const journalStress = item.journalSentiment ? (1.0 - item.journalSentiment) / 2.0 : 0.4;
 
     const dailyStress = 0.45 * moodStress + 0.35 * sleepStress + 0.20 * journalStress;
@@ -158,13 +135,7 @@ export function computeLocalWellnessScore(checkInsHistory) {
   };
 }
 
-/**
- * Local Fusion formula:
- * Composite = 0.55 * w_score + 0.45 * band_to_score(h_band)
- * Maps to tier: Emerging, Elevated, Critical
- */
 export function performLocalFusion(wScore, hBand, thresholds = { tau1: 0.45, tau2: 0.65, tau3: 0.85 }, hasAcute = false) {
-  // Map h_band (0-4) to normalized score (0.0 to 1.0)
   const hScore = hBand / 4.0;
   const composite = 0.55 * wScore + 0.45 * hScore;
 

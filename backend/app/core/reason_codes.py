@@ -1,15 +1,11 @@
-"""
-Reason Code Catalog
-Whitelisted vocabulary of closed reason codes for explainable risk attribution.
-Zero free-text or raw psychological descriptions are permitted across the network.
-"""
+"""Whitelisted reason-code vocabulary for risk attribution (no free text on the wire)."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 from pydantic import BaseModel
 
 class ReasonCodeDefinition(BaseModel):
     code: str
-    category: str  # "operational" | "wellness_trend" | "acute_safety" | "unit_climate"
+    category: str
     title: str
     description: str
     severity_weight: float
@@ -99,9 +95,7 @@ REASON_CODES: Dict[str, ReasonCodeDefinition] = {
 }
 
 def validate_reason_codes(codes: List[str]) -> List[str]:
-    """Ensures incoming codes strictly belong to the whitelisted vocabulary."""
     return [c for c in codes if c in REASON_CODES]
 
 def get_reason_metadata(codes: List[str]) -> List[ReasonCodeDefinition]:
-    """Returns detailed metadata for valid reason codes."""
     return [REASON_CODES[c] for c in codes if c in REASON_CODES]

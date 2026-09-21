@@ -1,4 +1,4 @@
-"""SQLAlchemy persistence for cases, interventions, audit blocks, and idempotency."""
+"""Persistence for cases, interventions, audit blocks, and idempotency keys."""
 
 from datetime import datetime, timezone
 from typing import Generator, Optional
@@ -80,17 +80,17 @@ class IdentityRegistry(Base):
     full_name: Mapped[str] = mapped_column(String(100))
     rank: Mapped[str] = mapped_column(String(50))
     unit: Mapped[str] = mapped_column(String(100))
-    blood_group: Mapped[str] = mapped_column(String(10))  # e.g., 'A+', 'O-'
+    blood_group: Mapped[str] = mapped_column(String(10))
     emergency_contact_phone: Mapped[str] = mapped_column(String(20))
     emergency_contact_name: Mapped[str] = mapped_column(String(100))
     base_location: Mapped[str] = mapped_column(String(100))
 
 
-# Database engine setup with dialect-aware pooling
+# SQLite gets WAL + relaxed sync for local dev; other dialects use pooling.
 if settings.database_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
     engine = create_engine(settings.database_url, connect_args=connect_args)
-    # Set up SQLite-specific pragmas for performance and reliability
+
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
@@ -99,7 +99,6 @@ if settings.database_url.startswith("sqlite"):
         cursor.execute("PRAGMA cache_size=-64000")
         cursor.close()
 else:
-    # For PostgreSQL and other databases, use connection pooling
     engine = create_engine(
         settings.database_url,
         pool_size=10,
@@ -159,8 +158,3 @@ def case_dict(db: Session, case: CaseRecord) -> dict:
             for item in interventions
         ],
     }
-
-
-def init_db() -> None:
-    """Initialize database tables."""
-    Base.metadata.create_all(bind=engine)

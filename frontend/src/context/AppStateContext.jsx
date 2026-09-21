@@ -3,7 +3,6 @@ import {
   fetchWelfareCases,
   fetchCommanderHeatmap,
   fetchAuditLedger,
-  fetchRiskBand,
   submitEscalation
 } from '../services/api';
 import {
@@ -66,10 +65,9 @@ export const DEMO_PERSONAS = [
 ];
 
 export function AppStateProvider({ children }) {
-  // Authentication & Session State
   const [currentUser, setCurrentUser] = useState(DEMO_PERSONAS[0]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Initial landing on Unified Login Page
-  const [activeRole, setActiveRole] = useState('device'); // 'device' | 'welfare' | 'command' | 'audit'
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeRole, setActiveRole] = useState('device');
 
   const loginWithResolvedUser = (userObj) => {
     let internalRole = 'device';
@@ -114,8 +112,7 @@ export function AppStateProvider({ children }) {
     setIsAuthenticated(false);
     showToast("Session terminated. Returned to authentication portal.", "info");
   };
-  
-  // Z0 Device Zone Simulation State
+
   const [pseudonymId] = useState('f83a1290-7d1a-4c22-98ab-3011982bca81');
   const [isAirplaneMode, setIsAirplaneMode] = useState(false);
   const [hBandInfo, setHBandInfo] = useState({
@@ -124,7 +121,6 @@ export function AppStateProvider({ children }) {
     unit_baseline_median: 0.52
   });
 
-  // Local Check-ins & Journal State (100% On-Device)
   const [checkIns, setCheckIns] = useState([
     { date: '2026-09-06', mood: 4, sleepHours: 6.5, fatigue: 2, journalSentiment: 0.2 },
     { date: '2026-09-07', mood: 3, sleepHours: 5.5, fatigue: 3, journalSentiment: -0.1 },
@@ -147,7 +143,6 @@ export function AppStateProvider({ children }) {
     }
   ]);
 
-  // Derived On-Device ML outputs
   const [localWScore, setLocalWScore] = useState(0.68);
   const [localFusionResult, setLocalFusionResult] = useState({
     compositeScore: 0.72,
@@ -156,14 +151,12 @@ export function AppStateProvider({ children }) {
   });
   const [escalationOutbox, setEscalationOutbox] = useState([]);
 
-  // Z1 Welfare & Command Data
   const [welfareCases, setWelfareCases] = useState([]);
   const [commanderHeatmap, setCommanderHeatmap] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [lastEgressPayload, setLastEgressPayload] = useState(null);
   const [notification, setNotification] = useState(null);
 
-  // Sync / Calculate On-Device Metrics whenever check-ins or journal change
   useEffect(() => {
     const wResult = computeLocalWellnessScore(checkIns);
     setLocalWScore(wResult.wScore);
@@ -178,7 +171,6 @@ export function AppStateProvider({ children }) {
     setLocalFusionResult(fusion);
   }, [checkIns, localJournalEntries, hBandInfo]);
 
-  // Load backend data periodically or on role switch
   const refreshGlobalData = async () => {
     try {
       if (activeRole === 'welfare') {
@@ -202,13 +194,10 @@ export function AppStateProvider({ children }) {
     refreshGlobalData();
   }, [activeRole]);
 
-  // Send queued escalations when airplane mode is disabled (connectivity restored)
   useEffect(() => {
     if (!isAirplaneMode && escalationOutbox.length > 0) {
-      // Process queue sequentially with error tracking
       const processQueue = async () => {
         const failedIds = new Set();
-        const failedPayloads = [];
 
         for (const payload of escalationOutbox) {
           try {
@@ -217,23 +206,17 @@ export function AppStateProvider({ children }) {
           } catch (err) {
             console.error('Failed to send queued escalation:', err);
             failedIds.add(payload.client_event_id);
-            failedPayloads.push(payload);
             showToast(`Failed to dispatch escalation: ${payload.tier.toUpperCase()} tier`, "error");
           }
         }
 
-        // Atomic update: remove successfully sent payloads, keep failed ones for retry
         setEscalationOutbox(prev => prev.filter(item => !failedIds.has(item.client_event_id)));
-
-        // If there are failed payloads, we could implement retry logic here
-        // For now, we keep them in the outbox for manual retry or next connectivity attempt
       };
 
       processQueue();
     }
   }, [isAirplaneMode, escalationOutbox]);
 
-  // Add new local check-in
   const addCheckIn = (mood, sleepHours, fatigue) => {
     const today = new Date().toISOString().split('T')[0];
     const newEntry = { date: today, mood, sleepHours, fatigue, journalSentiment: 0 };
@@ -241,7 +224,6 @@ export function AppStateProvider({ children }) {
     showToast("Check-in saved on device!", "success");
   };
 
-  // Add local journal entry
   const addJournalEntry = (text, language = 'Hindi') => {
     const analysis = analyzeJournalTextLocally(text);
     const newEntry = {
@@ -253,7 +235,6 @@ export function AppStateProvider({ children }) {
     };
     setLocalJournalEntries(prev => [newEntry, ...prev]);
 
-    // Update today's checkin sentiment
     const today = new Date().toISOString().split('T')[0];
     setCheckIns(prev => prev.map(c => c.date === today ? { ...c, journalSentiment: analysis.sentiment } : c));
 
@@ -266,7 +247,6 @@ export function AppStateProvider({ children }) {
     return analysis;
   };
 
-  // Submit Escalation from device to Z1
   const triggerDeviceEscalation = async () => {
     if (isAirplaneMode) {
       showToast("✈️ Airplane Mode Active: Transmission queued in on-device outbox.", "info");

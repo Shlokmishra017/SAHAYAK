@@ -6,8 +6,7 @@ import {
   LockKeyhole,
   Sparkles,
   AlertCircle,
-  CheckCircle2,
-  AlertTriangle
+  CheckCircle2
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageIntro } from '../layout/PageIntro';
@@ -35,14 +34,11 @@ export function CaseDetailView() {
   const [caseData, setCaseData] = useState(null);
   const [reasonMeta, setReasonMeta] = useState([]);
   const [interventionsList, setInterventionsList] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Calibration label state
   const [calibrationLabel, setCalibrationLabel] = useState(null);
   const [calibrationNotes, setCalibrationNotes] = useState('');
   const [isSubmittingLabel, setIsSubmittingLabel] = useState(false);
 
-  // Modals
   const [breakGlassOpen, setBreakGlassOpen] = useState(false);
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
   const [resolvedIdentity, setResolvedIdentity] = useState(null);
@@ -51,7 +47,6 @@ export function CaseDetailView() {
     let isMounted = true;
     async function loadData() {
       if (!caseId) return;
-      setIsLoading(true);
       try {
         const res = await fetchCaseDetail(caseId);
         if (isMounted && res) {
@@ -62,8 +57,6 @@ export function CaseDetailView() {
         }
       } catch (err) {
         console.error('Failed to load case detail:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
       }
     }
     loadData();
@@ -89,7 +82,7 @@ export function CaseDetailView() {
     setCaseData((prev) => prev ? { ...prev, status: 'intervention_active' } : prev);
   };
 
-  // Fallback to local list item if loading
+  // Falls back to the queue row while the detail request is in flight.
   const c = caseData || (welfareCases || []).find((item) => item.case_id === caseId) || {
     case_id: caseId || 'CASE-UNKNOWN',
     pseudonym_id: 'loading...',
@@ -101,7 +94,6 @@ export function CaseDetailView() {
 
   return (
     <>
-      {/* Back button */}
       <button
         onClick={() => navigate('/welfare/cases')}
         className="mb-5 flex items-center gap-2 text-[11px] font-bold text-[#46816e] hover:text-[#174c42] transition-colors"
@@ -109,7 +101,6 @@ export function CaseDetailView() {
         <ArrowLeft size={14} /> Back to cases
       </button>
 
-      {/* Page Intro */}
       <PageIntro
         title={`${getCasePseudonymName(c)} · ${c.case_id}`}
         description={`${c.unit_context || 'CRPF 144 Bn (CI Ops)'} · Dedicated welfare case view`}
@@ -131,9 +122,7 @@ export function CaseDetailView() {
         }
       />
 
-      {/* Main Grid: Detail Card + Privacy Card */}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
-        {/* Left: Detail Card */}
         <div className="rounded-2xl border border-[#dfe8e3] bg-white shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
           <div className="flex items-start justify-between border-b border-[#edf1ef] px-5 py-5 sm:px-6">
             <div className="flex gap-3">
@@ -159,7 +148,6 @@ export function CaseDetailView() {
           </div>
 
           <div className="p-5 sm:p-6 space-y-5">
-            {/* Why this was flagged */}
             <div>
               <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[#9a6d35]">
                 <Sparkles size={15} />
@@ -182,7 +170,6 @@ export function CaseDetailView() {
               </div>
             </div>
 
-            {/* Detailed Reason Codes from Backend Metadata */}
             {reasonMeta && reasonMeta.length > 0 && (
               <div>
                 <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#8a9a94]">
@@ -213,7 +200,6 @@ export function CaseDetailView() {
               </div>
             )}
 
-            {/* Risk Signals Grid */}
             <div className="grid gap-3 sm:grid-cols-3">
               <Signal
                 label="Operational Hazard Band"
@@ -232,7 +218,6 @@ export function CaseDetailView() {
               />
             </div>
 
-            {/* Officer Calibration Feedback */}
             <div className="border-t border-[#edf1ef] pt-4">
               <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#8a9a94]">
                 Welfare Officer Calibration Feedback
@@ -259,7 +244,6 @@ export function CaseDetailView() {
               </div>
             </div>
 
-            {/* Bottom Actions */}
             <div className="flex flex-wrap gap-2 border-t border-[#edf1ef] pt-5">
               <button
                 onClick={() => setInterventionModalOpen(true)}
@@ -277,7 +261,6 @@ export function CaseDetailView() {
           </div>
         </div>
 
-        {/* Right: Privacy & Care Card */}
         <div className="space-y-4">
           <div className="rounded-2xl border border-[#dfe8e3] bg-[#eaf5ef] p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2 text-[#286c58]">
@@ -293,7 +276,6 @@ export function CaseDetailView() {
             </div>
           </div>
 
-          {/* If identity resolved via break glass */}
           {resolvedIdentity && (
             <div className="rounded-2xl border border-[#d1e7da] bg-white p-5 shadow-xs">
               <div className="text-[11px] font-bold uppercase tracking-wider text-[#27705c] flex items-center gap-1.5">
@@ -322,7 +304,6 @@ export function CaseDetailView() {
         </div>
       </div>
 
-      {/* Intervention History Section */}
       <div className="mt-5 rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
         <div className="mb-5 flex items-center justify-between">
           <div>
@@ -372,7 +353,6 @@ export function CaseDetailView() {
         )}
       </div>
 
-      {/* Break-Glass Modal */}
       {breakGlassOpen && (
         <BreakGlassModal
           isOpen={breakGlassOpen}
@@ -382,7 +362,6 @@ export function CaseDetailView() {
         />
       )}
 
-      {/* Intervention Modal */}
       {interventionModalOpen && (
         <InterventionModal
           isOpen={interventionModalOpen}

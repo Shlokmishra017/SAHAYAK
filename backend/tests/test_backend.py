@@ -1,19 +1,8 @@
-"""
-Sahayak Automated Verification & Security Test Suite
-Tests:
-1. Synthetic cohort generation & non-linear post-leave hazard bump
-2. HR operational risk model training & unit-relative robust z-scoring
-3. Reason code closed-vocabulary validation
-4. Cryptographic SHA-256 hash-chain ledger verification & tamper detection
-5. K-anonymity (k >= 20) & complementary cell suppression
-6. Dual-custodian identity isolation & break-glass authorization
-7. FastAPI endpoint verification
-"""
+"""Core guarantees: cohort generation, risk calibration, reason codes, ledger, k-anonymity, break-glass."""
 
 import os
 import sys
 
-# Ensure backend root is on sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import unittest
@@ -34,8 +23,7 @@ class TestSahayakCore(unittest.TestCase):
         self.assertEqual(len(df), 200)
         self.assertIn("post_leave_hazard", df.columns)
         self.assertIn("latent_stress_index", df.columns)
-        
-        # Verify non-linear hazard is active for return window 7 to 21 days
+
         window_cases = df[(df["days_since_leave_return"] >= 7) & (df["days_since_leave_return"] <= 21)]
         if not window_cases.empty:
             self.assertTrue((window_cases["post_leave_hazard"] > 0).all())
@@ -66,28 +54,23 @@ class TestSahayakCore(unittest.TestCase):
 
     def test_04_cryptographic_hash_chain_and_tamper_detection(self):
         audit = AuditChainEngine()
-        
-        # Append 3 logs
+
         audit.append_log(actor_role="edge_device", actor_id="user_1", action="ESCALATION_RECORDED")
         audit.append_log(actor_role="welfare_officer", actor_id="wo_7742", action="CASE_ACCESSED")
         audit.append_log(actor_role="welfare_officer", actor_id="wo_7742", action="INTERVENTION_LOGGED")
-        
-        # Verify intact chain
+
         is_valid, msg, broken_seq = audit.verify_integrity()
         self.assertTrue(is_valid)
         self.assertIsNone(broken_seq)
-        
-        # Simulate malicious tampering on Block #1
+
         tampered = audit.tamper_demo(1)
         self.assertTrue(tampered)
-        
-        # Verifier must catch the breach!
+
         is_valid_after, msg_after, broken_seq_after = audit.verify_integrity()
         self.assertFalse(is_valid_after)
         self.assertEqual(broken_seq_after, 1)
 
     def test_05_k_anonymity_enforcement(self):
-        # Small cohort (n=12 < 20) -> Must be suppressed
         suppressed = enforce_k_anonymity_cohort(
             cohort_name="Outpost Echo",
             total_personnel=12,
@@ -95,8 +78,7 @@ class TestSahayakCore(unittest.TestCase):
         )
         self.assertTrue(suppressed["is_suppressed"])
         self.assertIsNone(suppressed["avg_fatigue_index"])
-        
-        # Standard cohort (n=45 >= 20) -> Must be approved
+
         approved = enforce_k_anonymity_cohort(
             cohort_name="Company Alpha",
             total_personnel=45,
@@ -106,7 +88,6 @@ class TestSahayakCore(unittest.TestCase):
         self.assertEqual(approved["avg_fatigue_index"], 5.2)
 
     def test_06_dual_custodian_break_glass(self):
-        # Register a test subject
         IdentityBroker.register_personnel(RealIdentityProfile(
             pseudonym_id="test-pseudo-123",
             service_number="CAPF-998877",
@@ -119,7 +100,6 @@ class TestSahayakCore(unittest.TestCase):
             base_location="Sector HQ, Jodhpur"
         ))
         
-        # Single custodian or invalid PIN -> Rejection
         req_fail = BreakGlassRequest(
             case_id="CASE-01",
             pseudonym_id="test-pseudo-123",
@@ -133,8 +113,7 @@ class TestSahayakCore(unittest.TestCase):
         )
         success, _, _ = IdentityBroker.break_glass_deanonymize(req_fail)
         self.assertFalse(success)
-        
-        # Valid dual custodians -> Approved
+
         req_pass = BreakGlassRequest(
             case_id="CASE-01",
             pseudonym_id="test-pseudo-123",

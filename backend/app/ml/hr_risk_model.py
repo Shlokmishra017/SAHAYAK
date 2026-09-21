@@ -1,10 +1,4 @@
-"""
-HR Risk Model & SHAP Reason Code Explainer
-Server-side operational risk engine that computes:
-1. Calibrated operational stress risk index (0.0 to 1.0)
-2. Unit-relative calibrated h_band (0 to 4) using median/MAD robust z-scoring
-3. SHAP factor contribution mapped directly into whitelisted reason codes
-"""
+"""Server-side operational risk engine: calibrated stress score, unit-relative h_band, reason codes."""
 
 import numpy as np
 import pandas as pd
@@ -30,7 +24,6 @@ class HRRiskEngine:
         self.is_trained: bool = False
 
     def train_model(self, df: pd.DataFrame):
-        """Trains the operational risk engine on synthetic operational data."""
         X = df[self.FEATURE_COLS].copy()
         X["family_colocated"] = X["family_colocated"].astype(int)
         y = df["latent_stress_index"].values
@@ -49,11 +42,7 @@ class HRRiskEngine:
         record: Dict,
         cohort_baseline: Dict
     ) -> Tuple[float, int, List[str], Dict[str, float]]:
-        """
-        Computes calibrated score, unit-relative h_band, and whitelisted reason codes.
-        """
         if not self.is_trained:
-            # Fallback heuristic if not trained
             raw_score = float(record.get("latent_stress_index", 0.5))
         else:
             feat_vector = np.array([[
@@ -70,25 +59,22 @@ class HRRiskEngine:
             raw_score = float(self.model.predict(feat_vector)[0])
             raw_score = float(np.clip(raw_score, 0.0, 1.0))
 
-        # Unit-relative calibration using cohort median and MAD
-        # This prevents an entire high-stress Counter-Insurgency battalion from being flagged wholesale!
+        # Unit-relative calibration, so a high-stress battalion isn't flagged wholesale.
         median = cohort_baseline.get("median", 0.50)
         mad = cohort_baseline.get("mad", 0.12)
         robust_z = (raw_score - median) / (1.4826 * mad)
 
-        # Map robust z-score to h_band (0 to 4)
         if robust_z < -0.5:
-            h_band = 0  # Very Low Risk relative to unit
+            h_band = 0
         elif robust_z < 0.5:
-            h_band = 1  # Nominal Unit Average
+            h_band = 1
         elif robust_z < 1.3:
-            h_band = 2  # Mildly Elevated
+            h_band = 2
         elif robust_z < 2.0:
-            h_band = 3  # High Operational Stress
+            h_band = 3
         else:
-            h_band = 4  # Critical Operational Strain
+            h_band = 4
 
-        # Extract SHAP-style attribution to determine whitelisted reason codes
         reason_codes = []
         factor_weights = {}
 

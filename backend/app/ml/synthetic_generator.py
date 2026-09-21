@@ -1,22 +1,10 @@
-"""
-Synthetic Cohort Generator
-Generates realistic 24-month longitudinal latent-state stress profiles for 5,000 personnel.
-Includes:
-- 4 Operational Deployment Contexts with distinct baseline stress distributions:
-  1. Border Guarding (BSF / ITBP): High isolation, weather extremes, long deployment spells.
-  2. Counter-Insurgency (CRPF / RR): Combat threat, acute alertness fatigue, casualty exposure.
-  3. Public Order (RAF / State Police): Acute episodic crowd control, fragmented sleep, sudden call-outs.
-  4. Static Security (CISF / Police HQ): Lower physical hazard, routine shifts, stagnation risk.
-- Non-linear post-leave hazard curve (peaking between days 7-21).
-- Operational features (consecutive days deployed, leave denial ratio, duty variance, night duty hours).
-- Observation generation: mood check-in (1-5), sleep hours, fatigue, journal sentiment, and missingness.
-"""
+"""Synthetic 24-month longitudinal stress profiles across 4 deployment contexts."""
 
 import numpy as np
 import pandas as pd
 import uuid
 import random
-from typing import Dict, List, Tuple
+from typing import Dict
 from app.core.security import IdentityBroker, RealIdentityProfile
 
 DEPLOYMENT_CONTEXTS = [
@@ -71,30 +59,24 @@ class SyntheticCohortManager:
         self.cohort_stats: Dict[str, Dict] = {}
 
     def generate_cohort(self, n_samples: int = 1200) -> pd.DataFrame:
-        """
-        Generates longitudinal profiles for synthetic personnel.
-        """
         records = []
         for i in range(n_samples):
             ctx_config = random.choice(DEPLOYMENT_CONTEXTS)
             pseudonym_id = str(uuid.uuid4())
-            
-            # Operational parameters
+
             consecutive_days = int(np.clip(np.random.normal(ctx_config["avg_deployment_days"], 25), 0, 180))
             rest_ratio_28d = float(np.clip(np.random.beta(5, 2 if consecutive_days < 45 else 7), 0.05, 0.95))
-            
+
             leave_applied = random.randint(2, 6)
             denial_chance = ctx_config["leave_denial_prob"] + (0.15 if consecutive_days > 60 else 0.0)
             leave_denied = int(np.random.binomial(leave_applied, min(0.85, denial_chance)))
             leave_denial_ratio = float(leave_denied / leave_applied) if leave_applied > 0 else 0.0
-            
-            # Days since returning from leave (simulates post-leave return window)
+
             has_recent_leave = random.random() < 0.40
             days_since_leave_return = random.randint(1, 90) if has_recent_leave else 180
-            
-            # Non-linear post-leave hazard factor (peaking days 7 to 21)
+
+            # Post-leave hazard peaks around days 7-21 after return.
             if 7 <= days_since_leave_return <= 21:
-                # Bell-shaped hazard bump
                 post_leave_hazard = np.exp(-((days_since_leave_return - 14) ** 2) / (2 * (5 ** 2))) * 0.35
             else:
                 post_leave_hazard = 0.0
@@ -106,7 +88,6 @@ class SyntheticCohortManager:
             duty_hour_variance = float(np.clip(np.random.normal(15, 6), 2, 40))
             promotion_stagnation_yrs = float(np.clip(np.random.exponential(4.0), 0.5, 16.0))
             
-            # Latent True Stress State (continuous 0.0 to 1.0)
             latent_stress = (
                 ctx_config["base_stress_mean"]
                 + (consecutive_days / 180.0) * 0.25
@@ -118,18 +99,16 @@ class SyntheticCohortManager:
                 + np.random.normal(0, 0.08)
             )
             latent_stress = float(np.clip(latent_stress, 0.02, 0.98))
-            
-            # Synthetic wellness observations derived from latent stress (on-device signals)
-            # Higher stress -> lower mood, worse sleep, negative journal sentiment
+
+            # Higher stress -> lower mood, worse sleep, more negative journal sentiment.
             mood_mean = np.clip(5.0 - (latent_stress * 3.8), 1.0, 5.0)
             sleep_mean = np.clip(7.8 - (latent_stress * 3.6), 3.0, 8.5)
             journal_sentiment = np.clip(0.65 - (latent_stress * 1.3), -0.95, 0.95)
-            
-            # Missingness: Stressed individuals frequently stop reporting (critical realistic behavior)
+
+            # Stressed personnel stop reporting more often.
             reporting_compliance = np.clip(0.95 - (latent_stress * 0.40), 0.20, 0.98)
             app_active = random.random() < reporting_compliance
 
-            # Acute safety distress marker trigger (<1.5% probability in high stress)
             has_acute_marker = bool(latent_stress > 0.82 and random.random() < 0.12)
 
             record = {
@@ -156,8 +135,7 @@ class SyntheticCohortManager:
                 "has_acute_marker": has_acute_marker
             }
             records.append(record)
-            
-            # Register in Identity Broker (Z2 isolated mock)
+
             first = random.choice(FIRST_NAMES)
             last = random.choice(LAST_NAMES)
             rank = random.choice(RANKS)
@@ -180,7 +158,6 @@ class SyntheticCohortManager:
         return self.personnel_df
 
     def get_personnel_by_pseudonym(self, pseudonym_id: str) -> dict:
-        """O(1) dictionary retrieval for device risk-band queries."""
         if pseudonym_id in self.pseudonym_index:
             return self.pseudonym_index[pseudonym_id]
         if not self.personnel_df.empty:
@@ -189,12 +166,10 @@ class SyntheticCohortManager:
                 rec = match.iloc[0].to_dict()
                 self.pseudonym_index[pseudonym_id] = rec
                 return rec
-            # Fallback to random sample record for demonstration
             return self.personnel_df.iloc[0].to_dict()
         return {}
 
     def _calculate_cohort_baselines(self):
-        """Calculates cohort-specific median and MAD for unit-relative calibration."""
         for ctx in self.personnel_df["force_type"].unique():
             subset = self.personnel_df[self.personnel_df["force_type"] == ctx]["latent_stress_index"]
             median = float(subset.median())

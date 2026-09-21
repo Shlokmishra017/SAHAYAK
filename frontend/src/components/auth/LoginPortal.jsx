@@ -58,7 +58,6 @@ export function LoginPortal() {
   return (
     <div className="min-h-screen bg-[#f5f7f6] text-[#15221f] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto w-full space-y-6">
-        {/* Header Branding in v0 Style */}
         <div className="text-center space-y-3">
           <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#123e39] text-[#d5f1dc] shadow-md">
             <ShieldCheck size={26} />
@@ -76,7 +75,6 @@ export function LoginPortal() {
           </p>
         </div>
 
-        {/* Login Card */}
         <div className="rounded-2xl border border-[#dfe8e3] bg-white p-7 shadow-[0_8px_30px_rgba(30,72,58,0.035)] space-y-5">
           <div>
             <h2 className="font-serif text-[18px] font-semibold text-[#25443b]">
@@ -162,7 +160,6 @@ export function LoginPortal() {
             </button>
           </form>
 
-          {/* Quick Persona Selection */}
           <div className="pt-4 border-t border-[#edf1ef]">
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#8ba099] mb-2.5">
               Quick Verified Personas

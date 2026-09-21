@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const signalDisplayMap = {
   RC_ACUTE_DISTRESS_MARKER: 'Acute emotional distress signal',
   RC_SUSTAINED_DEPLOYMENT: 'Prolonged deployment without rotation',

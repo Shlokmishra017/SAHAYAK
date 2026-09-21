@@ -73,7 +73,6 @@ export function TeamPulseView() {
         }
       />
 
-      {/* Strategic Summary Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Stat
           label="Total personnel monitored"
@@ -95,9 +94,7 @@ export function TeamPulseView() {
         />
       </div>
 
-      {/* Main Grid: Heatmap + Climate Anomalies */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Cohort Fatigue Heatmap Card */}
         <div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-serif text-[20px] font-semibold text-[#25443b]">
@@ -151,7 +148,6 @@ export function TeamPulseView() {
                     </span>
                   </div>
 
-                  {/* Progress bar */}
                   <div className="h-2 w-full rounded-full bg-[#edf3ef]">
                     <div
                       className={`h-2 rounded-full transition-all ${
@@ -173,7 +169,6 @@ export function TeamPulseView() {
           </div>
         </div>
 
-        {/* Sub-Unit Cohesion & Climate Anomalies Card */}
         <div className="space-y-6">
           <div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
             <div className="flex items-center justify-between mb-4">
@@ -239,7 +234,6 @@ export function TeamPulseView() {
             </div>
           </div>
 
-          {/* Force Composition Card */}
           {cohortStats?.force_type_distribution && (
             <div className="rounded-2xl border border-[#dfe8e3] bg-white p-5 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
               <h3 className="font-serif text-[18px] font-semibold text-[#25443b] mb-3">

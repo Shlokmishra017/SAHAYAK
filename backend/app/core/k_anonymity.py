@@ -1,10 +1,6 @@
-"""
-K-Anonymity & Complementary Cell Suppression Module
-Ensures no commander dashboard view can be used to isolate an individual or infer
-risk scores for small cohorts (minimum cohort size n >= 20).
-"""
+"""k-anonymity (n >= 20) with complementary cell suppression."""
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 K_MIN_THRESHOLD = 20
 
@@ -13,10 +9,6 @@ def enforce_k_anonymity_cohort(
     total_personnel: int,
     metrics: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """
-    Evaluates cohort size against k=20 threshold.
-    If total_personnel < 20, redacts statistical distributions.
-    """
     if total_personnel < K_MIN_THRESHOLD:
         return {
             "cohort_name": cohort_name,
@@ -45,19 +37,13 @@ def apply_complementary_suppression(
     parent_group: str,
     sub_units: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
-    """
-    Applies complementary cell suppression:
-    If exactly ONE sub-unit is suppressed (e.g. n=14 out of Company A),
-    a second sub-unit (even if n>=20) must also be suppressed or aggregated
-    to prevent deducing the suppressed cell by subtracting other cells from the parent total.
-    """
+    # With exactly one suppressed cell, also suppress the smallest visible one
+    # so the hidden cell can't be derived by subtracting from the parent total.
     suppressed_count = sum(1 for u in sub_units if u.get("is_suppressed", False))
-    
-    # If exactly 1 unit is suppressed, suppress the smallest unsuppressed unit as complementary defense
+
     if suppressed_count == 1:
         unsuppressed = [u for u in sub_units if not u.get("is_suppressed", False)]
         if unsuppressed:
-            # Sort by total_personnel ascending
             smallest_valid = min(unsuppressed, key=lambda x: x.get("total_personnel", 9999))
             for u in sub_units:
                 if u.get("cohort_name") == smallest_valid.get("cohort_name"):

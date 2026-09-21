@@ -1,24 +1,12 @@
-"""
-Device API Endpoints (Z0 <-> Z1 Edge Gateway)
-Handles:
-- Device Attestation token generation
-- Inverted Risk Band pull (fetching unit-calibrated h_band and reason codes)
-- Escalation intake (receives pseudonym + tier + whitelist reason codes; NO raw personal text)
-- Self-referral intake
-- DPDP Erasure request
-"""
+"""Device edge gateway: attestation, risk-band pull, escalation/self-referral intake, erasure."""
 
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from app.core.config import settings
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-router = APIRouter(prefix="/v1/device", tags=["Device Edge Gateway"])
-limiter = Limiter(key_func=get_remote_address)
 from app.models.schemas import (
     DeviceAttestationRequest,
     DeviceAttestationResponse,
@@ -35,14 +23,11 @@ from app.core.auth import require_roles
 from app.core.database import CaseRecord, IdempotencyRecord, get_db
 
 router = APIRouter(prefix="/v1/device", tags=["Device Edge Gateway"])
+limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/attest", response_model=DeviceAttestationResponse)
 @limiter.limit("10/minute")
 def attest_device(request: Request, req: DeviceAttestationRequest, _user: dict = Depends(require_roles("Z0_PERSONNEL"))):
-    """
-    Simulates hardware device attestation (Play Integrity / DeviceCheck).
-    Verifies the device is untampered before allowing risk-band sync.
-    """
     token = f"attest_tok_{uuid.uuid4().hex[:16]}"
     return DeviceAttestationResponse(
         attestation_token=token,
@@ -52,11 +37,8 @@ def attest_device(request: Request, req: DeviceAttestationRequest, _user: dict =
 
 @router.get("/risk-band/{pseudonym_id}", response_model=RiskBandResponse)
 def get_risk_band(pseudonym_id: str, _user: dict = Depends(require_roles("Z0_PERSONNEL"))):
-    """
-    The device pulls the server-side HR risk band.
-    Inverts the privacy flow: Device pulls HR data and fuses locally,
-    preventing private psychological state from leaving the device.
-    """
+    # The device pulls the HR risk band and fuses locally, so private
+    # on-device state never has to leave the phone.
     record = cohort_manager.get_personnel_by_pseudonym(pseudonym_id)
     if not record:
         raise HTTPException(status_code=503, detail="Cohort data not initialized yet.")
@@ -85,12 +67,8 @@ def submit_escalation(
     db: Session = Depends(get_db),
     _user: dict = Depends(require_roles("Z0_PERSONNEL")),
 ):
-    """
-    Device submits an escalation when local fusion reaches Elevated or Critical tier.
-    CRITICAL INVARIANT: Contains ONLY pseudonym_id, tier, whitelisted reason codes.
-    Zero raw diary text, audio, or continuous wellness scores are accepted.
-    """
-    # Validate reason codes against closed whitelist
+    # Only pseudonym + tier + whitelisted reason codes are accepted here.
+    # No diary text, audio, or continuous scores ever reach this endpoint.
     clean_codes = validate_reason_codes(payload.reason_codes)
     if not clean_codes:
         clean_codes = ["RC_MOOD_TRAJECTORY_DROP"]
@@ -101,8 +79,7 @@ def submit_escalation(
             return {"status": "accepted", "case_id": previous.case_id, "tier": payload.tier, "duplicate": True}
 
     case_id = f"CASE-{uuid.uuid4().hex[:8].upper()}"
-    
-    # Lookup unit context for the case without storing names
+
     df = cohort_manager.personnel_df
     unit_context = "General Unit"
     if not df.empty:
@@ -127,7 +104,6 @@ def submit_escalation(
         db.add(IdempotencyRecord(key=idempotency_key, case_id=case_id))
     db.commit()
 
-    # Log escalation intake into immutable SHA-256 audit ledger
     audit_ledger.append_log(
         actor_role="edge_device",
         actor_id=payload.pseudonym_id[:8],
@@ -147,10 +123,6 @@ def submit_self_referral(
     db: Session = Depends(get_db),
     _user: dict = Depends(require_roles("Z0_PERSONNEL")),
 ):
-    """
-    Voluntary self-referral initiated by personnel.
-    Always accepted directly into triage queue.
-    """
     case_id = f"CASE-SELF-{uuid.uuid4().hex[:6].upper()}"
     db.add(CaseRecord(
         case_id=case_id,
@@ -185,11 +157,6 @@ def request_data_erasure(
     db: Session = Depends(get_db),
     _user: dict = Depends(require_roles("Z0_PERSONNEL")),
 ):
-    """
-    DPDP compliant Right to Erasure / Data Purge.
-    Clears all active flags and server records linked to the pseudonym.
-    """
-    deleted_count = 0
     cases = list(db.scalars(select(CaseRecord).where(CaseRecord.pseudonym_id == req.pseudonym_id)))
     deleted_count = len(cases)
     for case in cases:

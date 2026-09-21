@@ -78,7 +78,6 @@ export function Overview() {
         }
       />
 
-      {/* Top 4 Stats */}
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat
           label="Open cases"
@@ -106,7 +105,6 @@ export function Overview() {
         />
       </div>
 
-      {/* Cases Needing Attention Section */}
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="font-serif text-[21px] font-semibold text-[#1c3b33]">Cases needing attention</h2>
@@ -121,9 +119,7 @@ export function Overview() {
         </button>
       </div>
 
-      {/* Queue & Detail Preview Grid */}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,0.98fr)_minmax(480px,1.28fr)]">
-        {/* Priority Queue Card */}
         <div className="overflow-hidden rounded-2xl border border-[#dfe8e3] bg-white shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
           <div className="border-b border-[#edf1ef] px-5 py-4 text-[11px] font-bold uppercase tracking-[0.13em] text-[#80918b]">
             Priority queue
@@ -171,7 +167,6 @@ export function Overview() {
           </button>
         </div>
 
-        {/* Selected Case Preview Card */}
         {activePreview && (
           <div className="rounded-2xl border border-[#dfe8e3] bg-white shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
             <div className="flex items-start justify-between border-b border-[#edf1ef] px-5 py-5 sm:px-6">
@@ -258,7 +253,6 @@ export function Overview() {
         )}
       </div>
 
-      {/* Intervention Modal */}
       {interventionModalOpen && (
         <InterventionModal
           isOpen={interventionModalOpen}
