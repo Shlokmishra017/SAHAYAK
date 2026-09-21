@@ -1,90 +1,117 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppStateProvider, useAppState } from './context/AppStateContext';
-import { LoginPortal } from './components/auth/LoginPortal';
-import { AppShell } from './components/layout/AppShell';
-import { PersonnelWellnessDashboard } from './components/device/PersonnelWellnessDashboard';
-import { CaseList } from './components/welfare/CaseList';
-import { CohortHeatmap } from './components/command/CohortHeatmap';
-import { HashChainInspector } from './components/audit/HashChainInspector';
-import { ModelComparisonDemo } from './components/audit/ModelComparisonDemo';
-import { ZeroTrustInspector } from './components/audit/ZeroTrustInspector';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
-function AuthenticatedApp() {
-  const { activeRole } = useAppState();
-  const [activeSection, setActiveSection] = useState('overview');
+// Layout
+import { AppShell } from './components/layout/AppShell';
 
-  // Sync default section when active role changes
-  useEffect(() => {
-    if (activeRole === 'device') {
-      setActiveSection('overview');
-    } else if (activeRole === 'welfare') {
-      setActiveSection('cases');
-    } else if (activeRole === 'command') {
-      setActiveSection('heatmap');
-    } else if (activeRole === 'audit') {
-      setActiveSection('chain');
-    }
-  }, [activeRole]);
+// Auth
+import { LoginPortal } from './components/auth/LoginPortal';
 
-  return (
-    <AppShell
-      activeSection={activeSection}
-      onSectionChange={setActiveSection}
-    >
-      {/* Z0 Personnel Wellness Suite */}
-      {activeRole === 'device' && (
-        <ErrorBoundary>
-          <PersonnelWellnessDashboard externalSection={activeSection} />
-        </ErrorBoundary>
-      )}
+// Welfare Domain
+import { Overview } from './components/welfare/Overview';
+import { CasesView } from './components/welfare/CasesView';
+import { CaseDetailView } from './components/welfare/CaseDetailView';
+import { InterventionsView } from './components/interventions/InterventionsView';
 
-      {/* Z1 Welfare Officer Triage Core */}
-      {activeRole === 'welfare' && (
-        <ErrorBoundary>
-          <div className="space-y-6">
-            <CaseList />
-          </div>
-        </ErrorBoundary>
-      )}
+// Command Strategic Domain
+import { TeamPulseView } from './components/command/TeamPulseView';
 
-      {/* Commander Strategic Layer */}
-      {activeRole === 'command' && (
-        <ErrorBoundary>
-          <div className="space-y-6">
-            <CohortHeatmap externalSection={activeSection} />
-          </div>
-        </ErrorBoundary>
-      )}
+// Trust Audit Domain
+import { AuditLedgerView } from './components/audit/AuditLedgerView';
 
-      {/* Auditor & Cryptographic Trust Portal */}
-      {activeRole === 'audit' && (
-        <ErrorBoundary>
-          <div className="space-y-6">
-            {activeSection === 'chain' && <HashChainInspector />}
-            {activeSection === 'comparison' && <ModelComparisonDemo />}
-            {activeSection === 'zerotrust' && <ZeroTrustInspector />}
-          </div>
-        </ErrorBoundary>
-      )}
-    </AppShell>
-  );
-}
+// Personnel Wellness Enclave Domain
+import { PersonnelView } from './components/personnel/PersonnelView';
 
-function RootApp() {
+// Governance & SOP Guidance
+import { GuidanceView } from './components/governance/GuidanceView';
+
+/**
+ * Route protection wrapper.
+ * Redirects unauthenticated users to /login while preserving history context.
+ */
+function RequireAuth({ children }) {
   const { isAuthenticated } = useAppState();
+  const location = useLocation();
 
   if (!isAuthenticated) {
-    return <LoginPortal />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  return <AuthenticatedApp />;
+  return children;
+}
+
+/**
+ * Redirects authenticated users from root or role fallbacks to their designated home workspace.
+ */
+function RoleHomeRedirect() {
+  const { activeRole } = useAppState();
+
+  if (activeRole === 'command') return <Navigate to="/command" replace />;
+  if (activeRole === 'audit') return <Navigate to="/audit" replace />;
+  if (activeRole === 'device') return <Navigate to="/wellness" replace />;
+  return <Navigate to="/welfare" replace />;
+}
+
+/**
+ * Login page handler: redirects if already authenticated.
+ */
+function LoginPage() {
+  const { isAuthenticated } = useAppState();
+  if (isAuthenticated) {
+    return <RoleHomeRedirect />;
+  }
+  return <LoginPortal />;
 }
 
 export default function App() {
   return (
     <AppStateProvider>
-      <RootApp />
+      <BrowserRouter>
+        <ErrorBoundary>
+          <Routes>
+            {/* Public Authentication Route */}
+            <Route path="/login" element={<LoginPage />} />
+
+            {/* Protected App Shell Layout */}
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <AppShell />
+                </RequireAuth>
+              }
+            >
+              {/* Default Index Route */}
+              <Route index element={<RoleHomeRedirect />} />
+
+              {/* Welfare Officer Workspace Routes */}
+              <Route path="welfare" element={<Overview />} />
+              <Route path="welfare/cases" element={<CasesView />} />
+              <Route path="welfare/cases/:caseId" element={<CaseDetailView />} />
+              <Route path="welfare/interventions" element={<InterventionsView />} />
+
+              {/* Commander Strategic Workspace */}
+              <Route path="command" element={<TeamPulseView />} />
+
+              {/* Audit & Compliance Workspace */}
+              <Route path="audit" element={<AuditLedgerView />} />
+
+              {/* Personnel Confidential Wellness Enclave */}
+              <Route path="wellness" element={<PersonnelView />} />
+              <Route path="wellness/support" element={<PersonnelView />} />
+              <Route path="personnel" element={<Navigate to="/wellness" replace />} />
+
+              {/* Governance & Guidance SOP */}
+              <Route path="guidance" element={<GuidanceView />} />
+
+              {/* Catch-all Fallback */}
+              <Route path="*" element={<RoleHomeRedirect />} />
+            </Route>
+          </Routes>
+        </ErrorBoundary>
+      </BrowserRouter>
     </AppStateProvider>
   );
 }

@@ -1,37 +1,22 @@
 import React, { useState } from 'react';
-import { 
-  Shield, 
-  ShieldCheck, 
-  Lock, 
-  User, 
-  CreditCard, 
-  KeyRound, 
-  ArrowRight, 
-  AlertCircle 
-} from 'lucide-react';
-import { useAppState } from '../../context/AppStateContext';
+import { ShieldCheck, Lock, User, KeyRound, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { loginWithCredentials } from '../../services/api';
+import { useAppState, DEMO_PERSONAS } from '../../context/AppStateContext';
 
 export function LoginPortal() {
   const { loginWithResolvedUser } = useAppState();
-  
-  const [fullName, setFullName] = useState('Vikram Singh');
-  const [serviceId, setServiceId] = useState('CAPF-849201');
+  const navigate = useNavigate();
+
+  const [fullName, setFullName] = useState('Capt. Meera Nair');
+  const [serviceId, setServiceId] = useState('WO-7742');
   const [password, setPassword] = useState('ServicePass@2026');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // Discreet demo helper presets for evaluators
-  const demoProfiles = [
-    { label: 'Personnel (Constable Vikram)', name: 'Vikram Singh', id: 'CAPF-849201' },
-    { label: 'Welfare Officer (Capt. Meera)', name: 'Meera Nair', id: 'WO-7742' },
-    { label: 'Commander (Col. Deshmukh)', name: 'R. V. Deshmukh', id: 'CMD-1082' },
-    { label: 'Auditor (Inspector Verma)', name: 'Alok Verma', id: 'AUD-9901' },
-  ];
-
-  const handleQuickFill = (preset) => {
-    setFullName(preset.name);
-    setServiceId(preset.id);
+  const handleQuickFill = (persona) => {
+    setFullName(persona.name);
+    setServiceId(persona.serviceNo);
     setPassword('ServicePass@2026');
     setErrorMessage(null);
   };
@@ -39,7 +24,7 @@ export function LoginPortal() {
   const handleAuthenticate = async (e) => {
     e.preventDefault();
     if (!serviceId.trim()) {
-      setErrorMessage("Please enter your Service / ID Number.");
+      setErrorMessage('Please enter your Service / ID Number.');
       return;
     }
 
@@ -50,154 +35,159 @@ export function LoginPortal() {
       const response = await loginWithCredentials(fullName, serviceId, password);
       if (response && response.authenticated) {
         loginWithResolvedUser(response.user);
+        const role = response.user?.role;
+        if (role === 'Z1_WELFARE_OFFICER' || role === 'welfare') {
+          navigate('/welfare');
+        } else if (role === 'Z1_COMMANDER' || role === 'command') {
+          navigate('/command');
+        } else if (role === 'AUDITOR' || role === 'audit') {
+          navigate('/audit');
+        } else {
+          navigate('/wellness');
+        }
       } else {
-        setErrorMessage("Authentication failed. Invalid service credentials.");
+        setErrorMessage('Authentication failed. Invalid service credentials.');
       }
     } catch (err) {
-      setErrorMessage("Service authorization server unreachable. Check network status.");
+      setErrorMessage('Authentication failed. Please verify service credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1220] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gov-pattern text-slate-100 font-sans">
-      
-      <div className="max-w-md mx-auto w-full space-y-8">
-        
-        {/* Government & Platform Identity */}
+    <div className="min-h-screen bg-[#f5f7f6] text-[#15221f] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md mx-auto w-full space-y-6">
+        {/* Header Branding in v0 Style */}
         <div className="text-center space-y-3">
-          <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400 font-semibold">
-            Government of India / CAPF & Defense Welfare Architecture
+          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#123e39] text-[#d5f1dc] shadow-md">
+            <ShieldCheck size={26} />
           </div>
-
-          <div className="flex items-center justify-center gap-3 pt-1">
-            <div className="w-11 h-11 rounded-xl bg-[#f4e9e4] border border-[#d9b8ab] flex items-center justify-center text-[#95432d] shrink-0">
-              <Shield className="w-6 h-6" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-xl font-bold tracking-tight text-white">SAHAYAK</h1>
-              <p className="text-xs text-slate-400">Personnel Stress & Welfare Intelligence</p>
+          <div>
+            <h1 className="font-serif text-[32px] font-semibold tracking-tight text-[#18342e]">
+              SAHAYAK
+            </h1>
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#78908a] mt-0.5">
+              Welfare command · Central armed police forces
             </div>
           </div>
+          <p className="text-xs text-[#75857f]">
+            Privacy-preserving personnel stress & operational welfare platform
+          </p>
         </div>
 
-        {/* Unified Authentication Card */}
-        <div className="p-7 sm:p-8 rounded-2xl bg-[#111A2B] border border-[#1E2D4A] shadow-card space-y-6">
-          
-          <div className="border-b border-[#1E2D4A] pb-4">
-            <h2 className="text-base font-semibold text-white">Secure Personnel Authentication</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Enter your service identity to access your authorized workspace</p>
+        {/* Login Card */}
+        <div className="rounded-2xl border border-[#dfe8e3] bg-white p-7 shadow-[0_8px_30px_rgba(30,72,58,0.035)] space-y-5">
+          <div>
+            <h2 className="font-serif text-[18px] font-semibold text-[#25443b]">
+              Service Authentication
+            </h2>
+            <p className="text-[11px] text-[#899791] mt-0.5">
+              Enter authorized credentials or select a verified demonstration persona
+            </p>
           </div>
 
-          <form onSubmit={handleAuthenticate} className="space-y-4">
-            
-            {/* Full Name */}
-            <div>
-              <label className="text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-slate-400" />
-                <span>Full Name</span>
-              </label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g., Vikram Singh"
-                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#b9573a] transition-colors"
-                required
-              />
+          {errorMessage && (
+            <div className="rounded-xl border border-[#f7d6cd] bg-[#fae6e0] p-3 text-xs text-[#a55342] flex items-center gap-2">
+              <AlertTriangle size={15} className="shrink-0" />
+              <span>{errorMessage}</span>
             </div>
+          )}
 
-            {/* Service ID Number */}
+          <form onSubmit={handleAuthenticate} className="space-y-4 text-xs">
             <div>
-              <label className="text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                <span>Service / ID Number</span>
+              <label className="block text-[11px] font-bold text-[#587068] mb-1">
+                Full Name
               </label>
-              <input
-                type="text"
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                placeholder="e.g., CAPF-849201"
-                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-[#b9573a] transition-colors uppercase"
-                required
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-slate-400" />
-                <span>Password / Service Token</span>
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full bg-[#0B1220] border border-[#1E2D4A] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#b9573a] transition-colors"
-                required
-              />
-            </div>
-
-            {errorMessage && (
-              <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-xl text-xs text-rose-300 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{errorMessage}</span>
+              <div className="relative">
+                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa6a1]" />
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Officer / Personnel Name"
+                  required
+                  className="w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] pl-9 pr-3 py-2.5 text-xs text-[#18342e] outline-none focus:border-[#77a993] transition-colors"
+                />
               </div>
-            )}
+            </div>
 
-            {/* Submit Button */}
+            <div>
+              <label className="block text-[11px] font-bold text-[#587068] mb-1">
+                Service Number / ID
+              </label>
+              <div className="relative">
+                <KeyRound size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa6a1]" />
+                <input
+                  type="text"
+                  value={serviceId}
+                  onChange={(e) => setServiceId(e.target.value)}
+                  placeholder="e.g. WO-7742, CMD-1082"
+                  required
+                  className="w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] pl-9 pr-3 py-2.5 font-mono text-xs text-[#18342e] outline-none focus:border-[#77a993] transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-[#587068] mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa6a1]" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                  className="w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] pl-9 pr-3 py-2.5 text-xs text-[#18342e] outline-none focus:border-[#77a993] transition-colors"
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl font-semibold text-xs text-white bg-[#b9573a] hover:bg-[#95432d] active:bg-[#713722] transition-colors flex items-center justify-center gap-2 mt-3 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+              className="w-full rounded-xl bg-[#174c42] py-2.5 text-xs font-bold text-white hover:bg-[#123e39] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? (
-                <span>Validating Service Identity...</span>
+                'Authenticating with SAHAYAK...'
               ) : (
                 <>
-                  <KeyRound className="w-4 h-4 text-white" />
-                  <span>Authenticate Securely</span>
-                  <ArrowRight className="w-4 h-4 text-white" />
+                  <span>Authenticate & Enter</span>
+                  <ArrowRight size={14} />
                 </>
               )}
             </button>
-
           </form>
 
-          {/* Discreet Evaluation Helper */}
-          <div className="pt-4 border-t border-[#1E2D4A] space-y-2">
-            <div className="text-[10px] text-slate-400 font-medium text-center">
-              Quick-Fill Test Accounts:
+          {/* Quick Persona Selection */}
+          <div className="pt-4 border-t border-[#edf1ef]">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#8ba099] mb-2.5">
+              Quick Verified Personas
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {demoProfiles.map((p, idx) => (
+            <div className="grid grid-cols-2 gap-2">
+              {DEMO_PERSONAS.map((p) => (
                 <button
-                  key={idx}
+                  key={p.id}
                   type="button"
                   onClick={() => handleQuickFill(p)}
-                  className="p-2 rounded-lg bg-[#0B1220] hover:bg-[#162238] border border-[#1E2D4A] text-left transition-colors"
+                  className={`rounded-xl border p-2.5 text-left transition-colors ${
+                    serviceId === p.serviceNo
+                      ? 'border-[#174c42] bg-[#eaf5ef]'
+                      : 'border-[#dfe8e3] bg-[#fbfdfb] hover:bg-[#f8fbf9]'
+                  }`}
                 >
-                  <div className="text-[11px] font-medium text-slate-200 truncate">{p.label}</div>
-                  <div className="text-[10px] text-slate-400 font-mono truncate">{p.id}</div>
+                  <div className="text-[11px] font-bold text-[#2d453e]">{p.name}</div>
+                  <div className="text-[10px] text-[#788a84] truncate">{p.roleLabel}</div>
+                  <div className="mt-1 font-mono text-[9px] text-[#27705c] font-bold">{p.serviceNo}</div>
                 </button>
               ))}
             </div>
           </div>
-
         </div>
-
-        {/* Security & Privacy Invariants Footer */}
-        <div className="text-center text-xs text-slate-400 space-y-1">
-          <div className="flex items-center justify-center gap-2 text-slate-400">
-            <Lock className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Secure authentication • Role-based access • Privacy protected</span>
-          </div>
-        </div>
-
       </div>
-
     </div>
   );
 }

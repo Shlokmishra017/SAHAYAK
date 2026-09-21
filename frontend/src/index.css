@@ -4,99 +4,106 @@
 
 :root {
   color-scheme: light;
-  --canvas: #f8f8f5;
-  --surface: #ffffff;
-  --surface-subtle: #f1f1ed;
-  --border: #dfdfd9;
-  --border-strong: #c9c9c1;
-  --ink: #1f1f1b;
-  --muted: #66665f;
-  --accent: #b9573a;
-  --accent-strong: #95432d;
+
+  /* Neutral-first, calm, institutional palette */
+  --bg-canvas: #F8F9FA;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F3F4F6;
+  --bg-muted: #E5E7EB;
+
+  --border-subtle: #E5E7EB;
+  --border-strong: #D1D5DB;
+
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-tertiary: #6B7280;
+  --text-muted: #9CA3AF;
+
+  --brand: #0F172A;
+  --brand-hover: #1E293B;
+  --brand-light: #F1F5F9;
+
+  /* Severity colors ONLY used for genuine severity status */
+  --critical: #DC2626;
+  --critical-bg: #FEF2F2;
+  --critical-border: #FEE2E2;
+
+  --elevated: #D97706;
+  --elevated-bg: #FFFBEB;
+  --elevated-border: #FEF3C7;
+
+  --emerging: #475569;
+  --emerging-bg: #F8FAFC;
+  --emerging-border: #E2E8F0;
+
+  --normal: #059669;
+  --normal-bg: #ECFDF5;
+  --normal-border: #D1FAE5;
 }
 
 body {
   margin: 0;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background-color: var(--canvas);
-  color: var(--ink);
-  overflow-x: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle, restrained scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
+
 ::-webkit-scrollbar-track {
-  background: var(--canvas);
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 4px;
+  background: #D1D5DB;
+  border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #aaa9a1;
+  background: #9CA3AF;
 }
 
-/* Shared surface primitives keep legacy feature views visually consistent. */
-.surface-card {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.surface-card-elevated {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.surface-card-interactive {
-  transition: all 0.18s ease-in-out;
-}
-.surface-card-interactive:hover {
-  background-color: var(--surface-subtle);
-  border-color: var(--border-strong);
-}
-
-/* Quiet paper texture for the authentication surface. */
-.bg-gov-pattern {
-  background-image: radial-gradient(#d8d8d1 0.6px, transparent 0.6px);
-  background-size: 18px 18px;
-}
-
-/* Legacy utility values map to the editorial neutral system. */
-.bg-\[\#0B1220\] { background-color: var(--canvas) !important; }
-.bg-\[\#060b17\] { background-color: var(--surface) !important; }
-.bg-\[\#111A2B\] { background-color: var(--surface) !important; }
-.bg-\[\#0E1729\] { background-color: var(--surface-subtle) !important; }
-.bg-\[\#162238\] { background-color: var(--surface-subtle) !important; }
-.bg-\[\#1D2D49\] { background-color: #e9e9e4 !important; }
-.border-\[\#1E2D4A\] { border-color: var(--border) !important; }
-.text-white { color: var(--ink) !important; }
-.text-slate-100, .text-slate-200, .text-slate-300 { color: #3f3f39 !important; }
-.text-slate-400, .text-slate-500 { color: var(--muted) !important; }
-.placeholder-slate-500::placeholder { color: #85857d !important; }
-.rounded-xl { border-radius: 8px !important; }
-.rounded-2xl { border-radius: 10px !important; }
-.shadow-card { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important; }
-button, input, select, textarea { font: inherit; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Subtle fade in transition */
+/* Micro animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 .animate-fade-in {
   animation: fadeIn 0.18s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Focus styles for keyboard accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #0F172A;
+  outline-offset: 1px;
 }
