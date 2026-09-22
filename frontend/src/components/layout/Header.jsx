@@ -6,7 +6,13 @@ import {
   Bell,
   LogOut,
   ChevronDown,
-  Shield
+  Shield,
+  ShieldCheck,
+  X,
+  KeyRound,
+  Database,
+  MapPin,
+  HeartHandshake
 } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAppState } from '../../context/AppStateContext';
@@ -15,6 +21,7 @@ export function Header({ onSearch, searchQuery = '' }) {
   const { currentUser, activeRole, logout } = useAppState();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [trustModalOpen, setTrustModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -85,6 +92,16 @@ export function Header({ onSearch, searchQuery = '' }) {
             />
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={() => setTrustModalOpen(true)}
+          className="hidden md:flex items-center gap-1.5 rounded-xl border border-[#d2e8db] bg-[#f2f8f4] px-3 py-1.5 text-[11px] font-bold text-[#1f5f4d] hover:bg-[#e4f1e9] transition-colors"
+          title="Sahayak Trust & Architecture Philosophy"
+        >
+          <ShieldCheck size={14} className="text-[#286c58]" />
+          <span>Trust & Architecture</span>
+        </button>
 
         <button
           className="relative rounded-lg p-2 text-[#6c7d78] hover:bg-[#f0f5f2] transition-colors"
@@ -203,6 +220,112 @@ export function Header({ onSearch, searchQuery = '' }) {
           >
             Guidance
           </button>
+        </div>
+      )}
+
+      {/* Trust & Privacy Architecture Modal (The 5 Differentiators) */}
+      {trustModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#d2e8db] bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#edf1ef] pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-[#174c42] text-white">
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <h2 className="font-serif text-lg font-bold text-[#1f4a3e]">
+                    Sahayak Architecture & Trust Model
+                  </h2>
+                  <p className="text-[11px] text-[#607d73]">
+                    Built for Armed Forces & CAPFs · Welfare-First · Non-Punitive
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTrustModalOpen(false)}
+                className="rounded-xl p-2 text-[#7e948c] hover:bg-[#f0f5f2] hover:text-[#1f4a3e] transition-colors"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs text-[#304d44]">
+              <p className="text-[12px] leading-relaxed text-[#4b6d62]">
+                Sahayak is designed to identify operational welfare and stress indicators <strong>without creating a punitive surveillance system</strong> that personnel actively avoid. The system implements five core architectural pillars:
+              </p>
+
+              {/* 1. Privacy by Architecture */}
+              <div className="rounded-2xl border border-[#dcebe1] bg-[#f8faf8] p-3.5">
+                <div className="flex items-center gap-2 font-bold text-[#1c4d40]">
+                  <Database size={15} className="text-[#2c7862]" />
+                  <span>1. Privacy by Architecture (Z0 Enclave)</span>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#55756b]">
+                  Personnel journal entries, continuous scores, and private thoughts never leave the device enclave. Only closed-vocabulary, whitelisted reason codes (e.g., <code>RC_SLEEP_DEGRADATION_TREND</code>) egress to the welfare board.
+                </p>
+              </div>
+
+              {/* 2. Operational Military Context */}
+              <div className="rounded-2xl border border-[#dcebe1] bg-[#f8faf8] p-3.5">
+                <div className="flex items-center gap-2 font-bold text-[#1c4d40]">
+                  <MapPin size={15} className="text-[#2c7862]" />
+                  <span>2. Operational Military Context (Robust Calibration)</span>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#55756b]">
+                  Stress is not judged arbitrarily. Operational baselines are calibrated relative to the unit's deployment context (High-Altitude CI, Desert Border, Public Order, Peace Station) using median/MAD normalization, avoiding false alarms during arduous field postings.
+                </p>
+              </div>
+
+              {/* 3. Welfare-First Guarantee */}
+              <div className="rounded-2xl border border-[#dcebe1] bg-[#f8faf8] p-3.5">
+                <div className="flex items-center gap-2 font-bold text-[#1c4d40]">
+                  <HeartHandshake size={15} className="text-[#2c7862]" />
+                  <span>3. Welfare-First Guarantee (Zero Disciplinary Access)</span>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#55756b]">
+                  The platform is strictly an intervention workflow (rest-cycles, peer buddy, counseling referral), insulated from career appraisals, promotion boards, or disciplinary actions. High stress signals a need for support, not unfitness.
+                </p>
+              </div>
+
+              {/* 4. Controlled Identity Access */}
+              <div className="rounded-2xl border border-[#dcebe1] bg-[#f8faf8] p-3.5">
+                <div className="flex items-center gap-2 font-bold text-[#1c4d40]">
+                  <KeyRound size={15} className="text-[#2c7862]" />
+                  <span>4. Controlled Identity Access (Dual-Custody Break-Glass)</span>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#55756b]">
+                  Welfare officers work with pseudonymized records. Unmasking an individual in acute distress requires simultaneous cryptographic authorization and independent PIN verification from two custodians (Welfare Officer + Medical Officer/Adjutant).
+                </p>
+              </div>
+
+              {/* 5. Field Reality */}
+              <div className="rounded-2xl border border-[#dcebe1] bg-[#f8faf8] p-3.5">
+                <div className="flex items-center gap-2 font-bold text-[#1c4d40]">
+                  <Shield size={15} className="text-[#2c7862]" />
+                  <span>5. Field Reality (Offline Outbox & Hindi Localization)</span>
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#55756b]">
+                  Designed for remote Border Outposts (BOPs) with intermittent connectivity. Check-ins are stored in an encrypted IndexedDB outbox and auto-sync when links restore. The Jawan interface is fully localized in natural Hindi.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-[#f0dfd0] bg-[#fffaf5] p-3 text-[11px] text-[#845b33]">
+                <strong>Non-Diagnostic Notice:</strong> Sahayak provides operational risk triage and workload recommendations. It does not provide clinical or psychiatric diagnoses.
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end border-t border-[#edf1ef] pt-3">
+              <button
+                type="button"
+                onClick={() => setTrustModalOpen(false)}
+                className="rounded-xl bg-[#174c42] px-4 py-2 text-xs font-bold text-white hover:bg-[#123e39] transition-colors"
+              >
+                Close Architecture Overview
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </header>

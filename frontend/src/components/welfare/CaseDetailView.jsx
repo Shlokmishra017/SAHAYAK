@@ -6,7 +6,10 @@ import {
   LockKeyhole,
   Sparkles,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Database,
+  Info,
+  BookOpen
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageIntro } from '../layout/PageIntro';
@@ -208,6 +211,71 @@ export function CaseDetailView() {
         }
       />
 
+      {/* 5-Step Welfare Intervention Lifecycle Stepper */}
+      <div className="mb-6 rounded-2xl border border-[#d2e8db] bg-[#f7faf8] p-4 sm:p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#2d6153]">
+            Welfare Intervention Lifecycle: Detect ➔ Triage ➔ Intervene ➔ Follow-up ➔ Outcome
+          </span>
+          <span className="text-[11px] font-semibold text-[#5a766e]">
+            Current Stage: <span className="font-bold text-[#1a4b3f] capitalize">{c.status?.replace(/_/g, ' ') || 'Open'}</span>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+          {/* Step 1: Detected */}
+          <div className="rounded-xl p-2.5 border border-[#397c68] bg-[#eaf5ef] font-bold text-[#174d43]">
+            <div className="text-[10px] font-bold text-[#397c68]">STEP 1</div>
+            <div className="text-xs font-semibold mt-0.5">Risk Detected</div>
+            <div className="text-[9px] text-[#55766c] mt-0.5 hidden sm:block">HR / Device Egress</div>
+          </div>
+
+          {/* Step 2: Triaged */}
+          <div className={`rounded-xl p-2.5 border transition-all ${
+            ['in_review', 'intervention_active', 'follow_up_due', 'closed'].includes(c.status)
+              ? 'border-[#397c68] bg-[#eaf5ef] font-bold text-[#174d43]'
+              : 'border-[#d09e5b] bg-[#fdf8f0] font-semibold text-[#8c5a21]'
+          }`}>
+            <div className="text-[10px] font-bold text-[#397c68]">STEP 2</div>
+            <div className="text-xs font-semibold mt-0.5">Triaged</div>
+            <div className="text-[9px] text-[#55766c] mt-0.5 hidden sm:block">Welfare Officer Review</div>
+          </div>
+
+          {/* Step 3: Intervened */}
+          <div className={`rounded-xl p-2.5 border transition-all ${
+            ['intervention_active', 'follow_up_due', 'closed'].includes(c.status) || (interventionsList && interventionsList.length > 0)
+              ? 'border-[#397c68] bg-[#eaf5ef] font-bold text-[#174d43]'
+              : 'border-[#dfe8e3] bg-white text-[#7d938b]'
+          }`}>
+            <div className="text-[10px] font-bold text-[#397c68]">STEP 3</div>
+            <div className="text-xs font-semibold mt-0.5">Intervention</div>
+            <div className="text-[9px] text-[#55766c] mt-0.5 hidden sm:block">Support Dispatched</div>
+          </div>
+
+          {/* Step 4: Follow-up */}
+          <div className={`rounded-xl p-2.5 border transition-all ${
+            ['follow_up_due', 'closed'].includes(c.status)
+              ? 'border-[#397c68] bg-[#eaf5ef] font-bold text-[#174d43]'
+              : 'border-[#dfe8e3] bg-white text-[#7d938b]'
+          }`}>
+            <div className="text-[10px] font-bold text-[#397c68]">STEP 4</div>
+            <div className="text-xs font-semibold mt-0.5">Follow-Up</div>
+            <div className="text-[9px] text-[#55766c] mt-0.5 hidden sm:block">Rhythm Check</div>
+          </div>
+
+          {/* Step 5: Outcome */}
+          <div className={`rounded-xl p-2.5 border transition-all ${
+            c.status === 'closed'
+              ? 'border-[#397c68] bg-[#eaf5ef] font-bold text-[#174d43]'
+              : 'border-[#dfe8e3] bg-white text-[#7d938b]'
+          }`}>
+            <div className="text-[10px] font-bold text-[#397c68]">STEP 5</div>
+            <div className="text-xs font-semibold mt-0.5">Outcome Logged</div>
+            <div className="text-[9px] text-[#55766c] mt-0.5 hidden sm:block">Resolved / Monitored</div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
         <div className="rounded-2xl border border-[#dfe8e3] bg-white shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
           <div className="flex items-start justify-between border-b border-[#edf1ef] px-5 py-5 sm:px-6">
@@ -224,7 +292,7 @@ export function CaseDetailView() {
                   )}
                 </div>
                 <div className="mt-1 text-[11px] text-[#899791] font-mono">
-                  {c.case_id} · {c.pseudonym_id ? `${c.pseudonym_id.slice(0, 8)}…` : ''}
+                  {c.case_id} · {c.pseudonym_id ? `${c.pseudonym_id.slice(0, 8)}…` : ''} · Confidential Pseudonym
                 </div>
               </div>
             </div>
@@ -235,24 +303,114 @@ export function CaseDetailView() {
 
           <div className="p-5 sm:p-6 space-y-5">
             <div>
-              <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[#9a6d35]">
-                <Sparkles size={15} />
-                <span>Why this was flagged</span>
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.13em] text-[#9a6d35]">
+                  <Sparkles size={15} />
+                  <span>Why this was flagged — Contributing Risk Signals</span>
+                </div>
+                <span className="text-[10px] text-[#7a8d87] italic">Not a diagnosis</span>
               </div>
               <div className="rounded-xl border border-[#f0e5ce] bg-[#fffaf0] p-4">
                 <div className="flex gap-3">
                   <AlertCircle className="mt-0.5 shrink-0 text-[#bf8141]" size={17} />
-                  <div>
-                    <div className="text-[13px] font-semibold text-[#60472d]">
-                      {getPrimarySignal(c.reason_codes)}
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-[13px] font-semibold text-[#60472d]">
+                        {getPrimarySignal(c.reason_codes)}
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-[#8a7155]">
+                        {c.has_acute_marker
+                          ? 'Urgent acute emotional distress pattern detected. Rapid-response non-punitive welfare protocol initiated.'
+                          : 'Significant deviation from unit operational baseline detected. Closed-vocabulary reason codes indicate sustained deployment pressure.'}
+                      </p>
                     </div>
-                    <p className="mt-1 text-[11px] leading-relaxed text-[#8a7155]">
-                      {c.has_acute_marker
-                        ? 'Urgent acute emotional distress pattern detected. Rapid-response welfare protocol initiated.'
-                        : 'Significant deviation from unit baseline detected. Closed-vocabulary reason codes indicate sustained operational stress.'}
-                    </p>
+
+                    {/* Enhanced Contributing Signal Breakdown (Task 13) */}
+                    <div className="space-y-2 pt-2 border-t border-[#f0e0c0]">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-[#9a6d35]">Contributing Signals</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        {(() => {
+                          const signals = [];
+                          if (c.reason_codes?.includes('RC_SUSTAINED_DEPLOYMENT')) {
+                            signals.push({ label: 'Sustained Deployment', detail: 'Extended operational duty without adequate rotation', icon: '📍' });
+                          }
+                          if (c.reason_codes?.includes('RC_SLEEP_DEGRADATION_TREND')) {
+                            signals.push({ label: 'Sleep Degradation Trend', detail: 'Consistent reduction in rest hours over 7+ days', icon: '🌙' });
+                          }
+                          if (c.reason_codes?.includes('RC_DENIED_LEAVE_CLUSTER')) {
+                            signals.push({ label: 'Leave Denial Cluster', detail: 'Multiple consecutive leave requests declined', icon: '📅' });
+                          }
+                          if (c.reason_codes?.includes('RC_MOOD_TRAJECTORY_DROP')) {
+                            signals.push({ label: 'Mood Trajectory Decline', detail: 'Self-reported mood trending downward over period', icon: '📉' });
+                          }
+                          if (c.reason_codes?.includes('RC_ACUTE_DISTRESS_MARKER')) {
+                            signals.push({ label: 'Acute Distress Marker', detail: 'On-device journal analysis detected crisis language', icon: '⚠️' });
+                          }
+                          if (c.reason_codes?.includes('RC_OPERATIONAL_FRICTION')) {
+                            signals.push({ label: 'Operational Friction', detail: 'Unit climate indicators show elevated stress', icon: '⚡' });
+                          }
+                          // Default fallback
+                          if (signals.length === 0) {
+                            signals.push({ label: 'Operational Stress Pattern', detail: 'Combined HR and device signals indicate elevated risk', icon: '📊' });
+                          }
+                          return signals.map((s, i) => (
+                            <div key={i} className="flex items-start gap-2 rounded-lg bg-white/60 p-2.5 border border-[#f0e0c0]">
+                              <span className="shrink-0 text-[14px]">{s.icon}</span>
+                              <div>
+                                <div className="font-semibold text-[#60472d]">{s.label}</div>
+                                <div className="text-[10px] text-[#8a7155]">{s.detail}</div>
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Recommended Welfare Response */}
+                    <div className="pt-3 border-t border-[#f0e0c0]">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-[#27705c] flex items-center gap-1.5">
+                        <CheckCircle2 size={12} /> Recommended Welfare Response
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {c.has_acute_marker ? (
+                          <>
+                            <span className="rounded-full bg-[#fae6e0] px-2 py-1 text-[10px] font-bold text-[#a55342]">Immediate Welfare Check-in</span>
+                            <span className="rounded-full bg-[#fae6e0] px-2 py-1 text-[10px] font-bold text-[#a55342]">Tele-MANAS Protocol (14416)</span>
+                            <span className="rounded-full bg-[#eaf5ef] px-2 py-1 text-[10px] font-bold text-[#27705c]">Peer Buddy Activation</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="rounded-full bg-[#eaf5ef] px-2 py-1 text-[10px] font-bold text-[#27705c]">Welfare Check-in</span>
+                            <span className="rounded-full bg-[#eaf5ef] px-2 py-1 text-[10px] font-bold text-[#27705c]">Rest Cycle Review</span>
+                            <span className="rounded-full bg-[#eaf5ef] px-2 py-1 text-[10px] font-bold text-[#27705c]">Counseling Referral</span>
+                            <span className="rounded-full bg-[#eaf5ef] px-2 py-1 text-[10px] font-bold text-[#27705c]">Workload Assessment</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Data Boundary */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-[#f0e0c0] text-[11px]">
+                      <div className="flex items-center gap-1.5 text-[#6d5132]">
+                        <span className="font-bold">• Operational Baseline:</span>
+                        <span>{c.unit_context || 'Sector Unit'} calibrated</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[#6d5132]">
+                        <span className="font-bold">• Data Boundary:</span>
+                        <span>Z1 Pseudonymized (Reason codes only)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Prototype Validation Disclaimer (Task 8) */}
+            <div className="rounded-xl border border-[#dfe8e3] bg-[#f7faf8] p-3">
+              <div className="flex items-center gap-2 text-[10px] text-[#6c7d78]">
+                <BookOpen size={13} className="text-[#8a9a94]" />
+                <strong className="text-[#3c6457]">Prototype Validation Notice:</strong>
+                <span>This risk assessment was generated using synthetic longitudinal data for pipeline validation. Production deployment requires retraining and clinical validation on authorized institutional datasets. Prototype validation ≠ clinical validation.</span>
               </div>
             </div>
 

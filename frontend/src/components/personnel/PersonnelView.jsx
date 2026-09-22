@@ -1,9 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Heart,
   Trash2,
   CheckCircle2,
-  Lock
+  Lock,
+  Smartphone,
+  ShieldCheck,
+  Activity,
+  Wifi,
+  WifiOff,
+  RotateCw,
+  Sparkles,
+  AlertCircle,
+  Download,
+  MonitorSmartphone,
+  Cpu,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { PageIntro, Stat } from '../layout/PageIntro';
 import { BackendErrorState, DemoModeBanner } from '../common/DemoModeBanner';
@@ -31,11 +44,57 @@ export function PersonnelView() {
     addJournalEntry,
     localWScore,
     hBandInfo,
-    showToast
+    showToast,
+    isOnline,
+    escalationOutbox,
+    syncOutbox,
+    isAirplaneMode,
+    setIsAirplaneMode
   } = useAppState();
 
   const [lang, setLang] = useState('en');
+  const [isPhoneFrame, setIsPhoneFrame] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return false;
+  });
+  const [isSyncingManually, setIsSyncingManually] = useState(false);
+  const [showPwaInstallPrompt, setShowPwaInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const t = PERSONNEL_STRINGS[lang] || PERSONNEL_STRINGS.en;
+
+  // PWA Install Prompt Handling
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      // Show prompt after user has interacted a bit
+      setTimeout(() => setShowPwaInstallPrompt(true), 3000);
+    };
+    const handleAppInstalled = () => {
+      setShowPwaInstallPrompt(false);
+      setDeferredPrompt(null);
+      showToast('Sahayak installed — works offline on your device.', 'success');
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, [showToast]);
+
+  const handlePwaInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      showToast('Installing Sahayak for offline field use...', 'info');
+    }
+    setDeferredPrompt(null);
+    setShowPwaInstallPrompt(false);
+  };
 
   const [mood, setMood] = useState(3);
   const [sleepHours, setSleepHours] = useState(6.5);
@@ -149,47 +208,91 @@ export function PersonnelView() {
     }
   };
 
+  const handleManualSync = async () => {
+    setIsSyncingManually(true);
+    try {
+      await syncOutbox();
+    } finally {
+      setIsSyncingManually(false);
+    }
+  };
+
   const tempoInsufficient = serverBand?.confidence === 'insufficient_history';
 
-  return (
-    <>
-      <DemoModeBanner />
-      {bandError && (
-        <div className="mb-4">
-          <BackendErrorState message={bandError} onRetry={() => window.location.reload()} />
+  const viewContent = (
+    <div className="space-y-5">
+      {/* Network & Outbox Status Pill */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d2e8db] bg-[#f4f9f6] px-4 py-2.5 text-xs">
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <>
+              <span className="inline-block size-2 rounded-full bg-[#286c58] animate-pulse" />
+              <span className="font-semibold text-[#25443b]">
+                {lang === 'hi' ? '🟢 सुरक्षित सिंक सक्रिय' : '🟢 Secure Sync Active'}
+              </span>
+            </>
+          ) : (
+            <>
+              <WifiOff size={14} className="text-[#c5793e]" />
+              <span className="font-semibold text-[#824f25]">
+                {lang === 'hi' ? '🟠 फ़ील्ड मोड (ऑफ़लाइन) — डेटा इसी फ़ोन पर सुरक्षित है' : '🟠 Field Mode (Offline) — Check-in saved securely on device'}
+              </span>
+            </>
+          )}
         </div>
-      )}
-      <PageIntro
-        eyebrow={t.eyebrow}
-        title={t.title}
-        description={t.description}
-        action={
+        {escalationOutbox?.length > 0 && (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-xl border border-[#dfe8e3] bg-white p-1 text-[11px] font-bold">
+            <span className="rounded-full bg-[#e3efe8] px-2.5 py-0.5 text-[11px] font-bold text-[#1f5f4d]">
+              {escalationOutbox.length} {lang === 'hi' ? 'सिंक लंबित' : 'pending sync'}
+            </span>
+            {isOnline && (
               <button
                 type="button"
-                onClick={() => setLang('en')}
-                className={`rounded-lg px-2.5 py-1.5 ${lang === 'en' ? 'bg-[#174c42] text-white' : 'text-[#557068]'}`}
+                onClick={handleManualSync}
+                disabled={isSyncingManually}
+                className="flex items-center gap-1 text-[11px] font-bold text-[#174c42] hover:underline"
               >
-                EN
+                <RotateCw size={11} className={isSyncingManually ? 'animate-spin' : ''} />
+                {lang === 'hi' ? 'अभी सिंक करें' : 'Sync now'}
               </button>
-              <button
-                type="button"
-                onClick={() => setLang('hi')}
-                className={`rounded-lg px-2.5 py-1.5 ${lang === 'hi' ? 'bg-[#174c42] text-white' : 'text-[#557068]'}`}
-              >
-                हिंदी
-              </button>
-            </div>
-            <div className="hidden items-center gap-1.5 rounded-xl border border-[#d2e8db] bg-[#eaf5ef] px-3 py-2 text-[11px] font-bold text-[#286c58] sm:flex">
-              <Lock size={13} /> On-device only
-            </div>
+            )}
           </div>
-        }
-      />
+        )}
+      </div>
+
+      {/* Core Privacy & Zero-Surveillance Architecture Callout */}
+      <div className="rounded-2xl border border-[#cbe4d5] bg-gradient-to-br from-[#f2f8f4] to-[#eaf4ee] p-4 sm:p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#174c42] text-white">
+            <ShieldCheck size={18} />
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#1d5c4b]">
+                {lang === 'hi' ? 'शून्य-निगरानी आर्किटेक्चर (Z0 एन्क्लेव)' : 'Zero-Surveillance Architecture (Z0 Enclave)'}
+              </h3>
+              <span className="rounded-full bg-[#d7ecdf] px-2.5 py-0.5 text-[10px] font-bold text-[#185544]">
+                {lang === 'hi' ? 'केवल कल्याण सहायता · गैर-दंडात्मक' : 'Welfare Only · Non-Punitive'}
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-[#3c6457]">
+              <strong>{lang === 'hi' ? 'इस डिवाइस पर निजी क्या रहता है:' : 'What stays private on this phone:'}</strong>{' '}
+              {lang === 'hi'
+                ? 'आपकी व्यक्तिगत जर्नल प्रविष्टियाँ, मूड/नींद के सटीक मान और व्यक्तिगत भावनाएँ इस फ़ोन को कभी नहीं छोड़ती हैं।'
+                : 'Your personal journal entries, exact slider scores, and private thoughts never leave this device.'}
+            </p>
+            <p className="text-xs leading-relaxed text-[#3c6457]">
+              <strong>{lang === 'hi' ? 'सर्वर को क्या भेजा जाता है:' : 'What leaves this device:'}</strong>{' '}
+              {lang === 'hi'
+                ? 'केवल अनाम रीज़न कोड (उदा. RC_SLEEP_DEGRADATION_TREND) कल्याण बोर्ड तक पहुँचते हैं। कभी भी पदोन्नति, पोस्टिंग या अनुशासनात्मक समीक्षा के लिए उपयोग नहीं किया जाता।'
+                : 'Only anonymized, closed-vocabulary reason codes reach welfare triage. Never accessible for disciplinary records or postings.'}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {!consented && (
-        <div className="mb-4 rounded-2xl border border-[#d2e8db] bg-[#f1f7f3] p-5">
+        <div className="rounded-2xl border border-[#d2e8db] bg-[#f1f7f3] p-5">
           <div className="flex items-start gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#286c58]">
               <Heart size={18} />
@@ -209,7 +312,7 @@ export function PersonnelView() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Stat
           label={t.rhythmLabel}
           value={rhythmWord(localWScore, t)}
@@ -232,6 +335,66 @@ export function PersonnelView() {
           detail={t.checkinsDetail}
           accent="text-[#397c68]"
         />
+      </div>
+
+      {/* Simulated Wearable Input Card (Prototype Demo) */}
+      <div className="rounded-2xl border border-[#d8e7de] bg-white p-5 shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <Activity size={16} className="text-[#2c7560]" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#25443b]">
+              {lang === 'hi' ? 'सिम्युलेटेड वेयरेबल बायोमेट्रिक फ़ीड' : 'Simulated Wearable Telemetry'}
+            </h3>
+          </div>
+          <span className="rounded-full bg-[#faefe3] border border-[#ecd9be] px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#9a6428]">
+            {lang === 'hi' ? 'प्रोटोटाइप डेमो' : 'Simulated Prototype Demo'}
+          </span>
+        </div>
+        <p className="text-[11px] text-[#69827a] mb-3">
+          {lang === 'hi'
+            ? 'यह प्रदर्शित करता है कि अधिकृत स्मार्टवॉच सेंसर स्थानीय डिवाइस पर ऑन-डिवाइस वेलनेस ट्रेंड में कैसे एकीकृत होते हैं (कोई कच्चा बायोमेट्रिक डेटा सर्वर पर नहीं भेजा जाता)।'
+            : 'Demonstrates where authorized biometric sensor streams integrate into local on-device trend analysis without raw biometric data egress.'}
+        </p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl border border-[#e5ede8] bg-[#f8faf8] p-2.5">
+            <div className="text-[10px] font-bold text-[#6f857d]">Resting HR</div>
+            <div className="text-sm font-bold text-[#23483e]">74 bpm</div>
+            <div className="text-[9px] text-[#3d836e] mt-0.5">Baseline: 68</div>
+          </div>
+          <div className="rounded-xl border border-[#e5ede8] bg-[#f8faf8] p-2.5">
+            <div className="text-[10px] font-bold text-[#6f857d]">Deep Sleep</div>
+            <div className="text-sm font-bold text-[#23483e]">4.2 hrs</div>
+            <div className="text-[9px] text-[#bf714d] mt-0.5">-35% vs baseline</div>
+          </div>
+          <div className="rounded-xl border border-[#e5ede8] bg-[#f8faf8] p-2.5">
+            <div className="text-[10px] font-bold text-[#6f857d]">HRV Index</div>
+            <div className="text-sm font-bold text-[#23483e]">48 ms</div>
+            <div className="text-[9px] text-[#8e6d34] mt-0.5">Moderate load</div>
+          </div>
+        </div>
+      </div>
+
+      {/* How It Works — Honest AI/ML Framing (Task 7) */}
+      <div className="rounded-2xl border border-[#d2e8db] bg-gradient-to-br from-[#f2f8f4] to-[#eaf4ee] p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#174c42] text-white">
+            <Cpu size={18} />
+          </div>
+          <div className="flex-1 space-y-2.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#1d5c4b]">How Your Wellness Trend Is Computed (On-Device)</h3>
+            <div className="space-y-1.5 text-[11px] text-[#3c6457]">
+              <p>
+                <strong>No cloud AI. No LLM. No neural network.</strong> Everything runs locally on this device.
+              </p>
+              <p>
+                <strong>What actually runs:</strong> A multilingual keyword lexicon (Hindi/English/Punjabi/Marathi) matches distress phrases in your journal, combined with an exponential moving average (EWMA) of your mood and sleep check-ins. This produces a local wellness score (wScore) fused with your unit's operational hazard band (hBand).
+              </p>
+              <p>
+                <strong>Why this matters:</strong> Your raw journal text, exact slider values, and continuous scores never leave this phone. Only closed-vocabulary reason codes (e.g., RC_SLEEP_DEGRADATION_TREND) reach the welfare board — never for discipline, only for support.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -385,6 +548,143 @@ export function PersonnelView() {
           </div>
         </div>
       </div>
+
+      {/* Non-Diagnostic Clinical Boundary (Task 15) */}
+      <div className="rounded-xl border border-[#dfe8e3] bg-[#fbfdfb] p-3 text-center text-[11px] text-[#638077]">
+        <strong>{lang === 'hi' ? 'संचालन सूचना:' : 'Operational Notice:'}</strong>{' '}
+        {lang === 'hi'
+          ? 'सहायक केवल कल्याणकारी जोखिम विश्लेषण और कार्यभार संतुलन हेतु संकेत प्रदान करता है। यह कोई चिकित्सीय या मनोवैज्ञानिक निदान नहीं है।'
+          : 'Sahayak provides proactive welfare risk triage and rest-cycle recommendations. It does not provide medical or psychiatric diagnoses.'}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <DemoModeBanner />
+      {bandError && (
+        <div className="mb-4">
+          <BackendErrorState message={bandError} onRetry={() => window.location.reload()} />
+        </div>
+      )}
+      <PageIntro
+        eyebrow={t.eyebrow}
+        title={t.title}
+        description={t.description}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPhoneFrame(!isPhoneFrame)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[11px] font-bold transition-all ${
+                isPhoneFrame
+                  ? 'border-[#174c42] bg-[#174c42] text-white shadow-sm'
+                  : 'border-[#dfe8e3] bg-white text-[#46685f] hover:bg-[#f0f5f2]'
+              }`}
+              title="Toggle field mobile phone preview framing"
+            >
+              <Smartphone size={13} />
+              <span>{isPhoneFrame ? 'Desktop Mode' : '📱 Field Phone View'}</span>
+            </button>
+
+            <div className="flex items-center gap-1 rounded-xl border border-[#dfe8e3] bg-white p-1 text-[11px] font-bold">
+              <button
+                type="button"
+                onClick={() => setLang('en')}
+                className={`rounded-lg px-2.5 py-1.5 ${lang === 'en' ? 'bg-[#174c42] text-white' : 'text-[#557068]'}`}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                onClick={() => setLang('hi')}
+                className={`rounded-lg px-2.5 py-1.5 ${lang === 'hi' ? 'bg-[#174c42] text-white' : 'text-[#557068]'}`}
+              >
+                हिंदी
+              </button>
+            </div>
+            <div className="hidden items-center gap-1.5 rounded-xl border border-[#d2e8db] bg-[#eaf5ef] px-3 py-2 text-[11px] font-bold text-[#286c58] sm:flex">
+              <Lock size={13} /> On-device Z0
+            </div>
+          </div>
+        }
+      />
+
+      {isPhoneFrame ? (
+        <div className="py-4">
+          <div className="mx-auto max-w-[420px] rounded-[48px] border-[10px] border-[#1b3e34] bg-[#f8faf9] p-4 shadow-[0_25px_60px_-15px_rgba(20,50,40,0.4)] ring-1 ring-black/10">
+            {/* Phone Speaker & Notch */}
+            <div className="mx-auto mb-4 flex items-center justify-center gap-2">
+              <div className="h-4 w-28 rounded-full bg-[#1b3e34]/30" />
+              <div className="size-3 rounded-full bg-[#1b3e34]/30" />
+            </div>
+            {/* Field App Header Pill */}
+            <div className="mb-3 flex items-center justify-between rounded-xl bg-[#1b3e34] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#d5e7df]">
+              <span>SAHAYAK MOBILE PWA</span>
+              <span>JAWAN SUITE</span>
+            </div>
+            {/* Offline Demo Toggle in Phone Frame */}
+            <div className="mb-3 rounded-xl border border-[#d2e8db] bg-gradient-to-r from-[#eaf5ef] to-[#f2f8f4] p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {isOnline && !isAirplaneMode ? (
+                    <>
+                      <Wifi size={12} className="text-[#286c58]" />
+                      <span className="font-semibold text-[#25443b] text-[10px]">🟢 Secure Sync Active</span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff size={12} className="text-[#c5793e]" />
+                      <span className="font-semibold text-[#824f25] text-[10px]">🟠 Field Mode (Offline)</span>
+                    </>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAirplaneMode(!isAirplaneMode)}
+                  className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[9px] font-bold transition-all ${
+                    isAirplaneMode
+                      ? 'border-[#f7d6cd] bg-[#fae6e0] text-[#a55342]'
+                      : 'border-[#d2e8db] bg-white text-[#286c58] hover:bg-[#f8fbf9]'
+                  }`}
+                  title={isAirplaneMode ? 'Go online (demo)' : 'Simulate offline (demo)'}
+                >
+                  {isAirplaneMode ? <Cloud size={11} /> : <CloudOff size={11} />}
+                  <span>{isAirplaneMode ? 'Online' : 'Offline'}</span>
+                </button>
+              </div>
+              <p className="mt-1 text-[9px] text-[#557068]">
+                {isAirplaneMode 
+                  ? (lang === 'hi' ? 'डेमो: फील्ड मोड — डेटा स्थानीय रूप से सहेजा जाता है' : 'Demo: Field mode — data saved locally')
+                  : (lang === 'hi' ? 'डेमो: "ऑफ़लाइन करें" टैप करके फील्ड व्यवहार दिखाएँ' : 'Demo: Tap "Offline" to simulate field conditions')}
+              </p>
+            </div>
+            {showPwaInstallPrompt && deferredPrompt && (
+              <div className="mb-3 rounded-xl border border-[#174c42] bg-[#eaf5ef] p-3 text-[10px] animate-slide-up">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MonitorSmartphone size={14} className="text-[#174c42]" />
+                    <span className="font-bold text-[#174c42]">{lang === 'hi' ? 'फ़ील्ड उपयोग के लिए इंस्टॉल करें' : 'Install for Field Use'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePwaInstall}
+                    className="shrink-0 rounded-lg bg-[#174c42] px-2.5 py-1.5 text-[10px] font-bold text-white"
+                  >
+                    {lang === 'hi' ? 'इंस्टॉल करें' : 'Install'}
+                  </button>
+                </div>
+                <p className="mt-1 text-[#397c68]">{lang === 'hi' ? 'ऑफ़लाइन काम करता है — कोई नेटवर्क नहीं चाहिए' : 'Works offline — no network required'}</p>
+              </div>
+            )}
+            {viewContent}
+            {/* Home Indicator Bar */}
+            <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-[#1b3e34]/40" />
+          </div>
+        </div>
+      ) : (
+        viewContent
+      )}
     </>
   );
 }

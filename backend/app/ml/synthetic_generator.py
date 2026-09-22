@@ -39,6 +39,14 @@ from app.core.security import IdentityBroker, RealIdentityProfile
 # a property of the dataset, not a tuned parameter.
 REVIEW_LABEL_THRESHOLD = 0.65
 
+# Canonical demo persona identity — shared single source of truth across
+# frontend context, backend identity registry, device risk band, and tests.
+DEMO_PERSONNEL_PSEUDONYM = "f83a1290-7d1a-4c22-98ab-3011982bca81"
+DEMO_PERSONNEL_SERVICE_NO = "CAPF-849201"
+DEMO_PERSONNEL_NAME = "Vikram Singh"
+DEMO_PERSONNEL_RANK = "Constable (GD)"
+DEMO_PERSONNEL_UNIT = "CRPF 144 Bn (CI Ops)"
+
 
 def add_review_label(df: pd.DataFrame, threshold: float = REVIEW_LABEL_THRESHOLD) -> pd.DataFrame:
     """Attach the binary evaluation label. Returns a copy; threshold fixed."""
@@ -100,8 +108,13 @@ class SyntheticCohortManager:
     def generate_cohort(self, n_samples: int = 1200) -> pd.DataFrame:
         records = []
         for i in range(n_samples):
-            ctx_config = random.choice(DEPLOYMENT_CONTEXTS)
-            pseudonym_id = str(uuid.uuid4())
+            if i == 0:
+                ctx_config = DEPLOYMENT_CONTEXTS[0]
+                pseudonym_id = DEMO_PERSONNEL_PSEUDONYM
+                _ = random.choice(DEPLOYMENT_CONTEXTS)
+            else:
+                ctx_config = random.choice(DEPLOYMENT_CONTEXTS)
+                pseudonym_id = str(uuid.uuid4())
 
             consecutive_days = int(np.clip(np.random.normal(ctx_config["avg_deployment_days"], 25), 0, 180))
             rest_ratio_28d = float(np.clip(np.random.beta(5, 2 if consecutive_days < 45 else 7), 0.05, 0.95))
@@ -190,10 +203,16 @@ class SyntheticCohortManager:
             }
             records.append(record)
 
-            first = random.choice(FIRST_NAMES)
-            last = random.choice(LAST_NAMES)
-            rank = random.choice(RANKS)
-            svc_no = f"CAPF-{random.randint(100000, 999999)}"
+            if i == 0:
+                first, last = "Vikram", "Singh"
+                rank = DEMO_PERSONNEL_RANK
+                svc_no = DEMO_PERSONNEL_SERVICE_NO
+                _ = (random.choice(FIRST_NAMES), random.choice(LAST_NAMES), random.choice(RANKS), random.randint(100000, 999999))
+            else:
+                first = random.choice(FIRST_NAMES)
+                last = random.choice(LAST_NAMES)
+                rank = random.choice(RANKS)
+                svc_no = f"CAPF-{random.randint(100000, 999999)}"
             IdentityBroker.register_personnel(RealIdentityProfile(
                 pseudonym_id=pseudonym_id,
                 service_number=svc_no,

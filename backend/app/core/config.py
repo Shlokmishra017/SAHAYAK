@@ -9,7 +9,7 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
-    demo_mode: bool = os.getenv("DEMO_MODE", "true").lower() == "true"
+    demo_mode: bool = os.getenv("DEMO_MODE", "false").lower() == "true"
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./sahayak.db")
     jwt_secret: str = os.getenv("JWT_SECRET")
     jwt_issuer: str = os.getenv("JWT_ISSUER", "sahayak-api")

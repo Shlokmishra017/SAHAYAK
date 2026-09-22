@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, X, Shield } from 'lucide-react';
+import { MessageCircle, X, Shield, Heart, UserCheck } from 'lucide-react';
 import { logWelfareIntervention } from '../../services/api';
 import { useAppState } from '../../context/AppStateContext';
 
@@ -90,28 +90,33 @@ export function InterventionModal({ isOpen, close, currentCase, onInterventionLo
               onChange={(e) => setKind(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] px-3 py-2.5 text-[12px] text-[#18342e] outline-none focus:border-[#77a993]"
             >
-              <option value="welfare_counseling">Welfare Counseling & Informal Connect</option>
-              <option value="peer_buddy_nudge">Peer Buddy Nudge (Informal)</option>
-              <option value="operational_rest_rotation">Operational Stand-Down / 72h Rest Rotation</option>
-              <option value="clinical_referral">Tele-MANAS (14416) / Medical Officer Connect</option>
-              <option value="routine_contact">Routine Welfare Follow-Up</option>
+              <option value="welfare_checkin">Welfare Check-in (Informal Conversation)</option>
+              <option value="peer_buddy_support">Peer Buddy Support Activation</option>
+              <option value="rest_recommendation">Rest Recommendation / 72h Stand-Down</option>
+              <option value="counseling_referral">Counseling Referral (Unit Welfare Officer)</option>
+              <option value="medical_review">Medical Review / Tele-MANAS (14416)</option>
+              <option value="family_welfare_support">Family Welfare Support Coordination</option>
+              <option value="workload_review">Workload & Duty Pattern Review</option>
+              <option value="routine_followup">Routine Welfare Follow-Up</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-[#587068]">Target concern (optional)</label>
+            <label className="block text-[11px] font-bold text-[#587068]">Focus Area (optional)</label>
             <select
               value={targetConcern}
               onChange={(e) => setTargetConcern(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] px-3 py-2.5 text-[12px] text-[#18342e] outline-none focus:border-[#77a993]"
             >
-              <option value="">Select concern…</option>
-              <option value="sleep_fatigue">Sleep / fatigue</option>
-              <option value="leave_separation">Leave / family separation</option>
-              <option value="workload_tempo">Workload / operational tempo</option>
-              <option value="post_leave_reentry">Post-leave re-entry</option>
-              <option value="acute_distress">Acute distress</option>
-              <option value="general_checkin">General check-in</option>
+              <option value="">Select focus area…</option>
+              <option value="sleep_rest">Sleep & Rest Quality</option>
+              <option value="leave_family">Leave & Family Connection</option>
+              <option value="workload_tempo">Workload & Operational Tempo</option>
+              <option value="post_leave_reentry">Post-Leave Re-Entry Support</option>
+              <option value="acute_distress">Acute Distress Support</option>
+              <option value="general_welfare">General Welfare Check-In</option>
+              <option value="peer_relationships">Peer & Unit Cohesion</option>
+              <option value="reintegration">Reintegration After Deployment</option>
             </select>
           </div>
 

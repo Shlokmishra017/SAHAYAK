@@ -44,4 +44,8 @@ def break_glass_deanonymize(request: Request, req: BreakGlassRequest, _user: dic
 @limiter.limit("30/minute")
 def get_custodian_info(request: Request, _user: dict = Depends(require_roles("Z1_WELFARE_OFFICER", "AUDITOR"))):
     # PINs are never returned. Clients must collect PINs via secure input.
-    return {"authorized_custodians": _public_custodian_list()}
+    from app.core.config import settings
+    return {
+        "authorized_custodians": _public_custodian_list(),
+        "demo_mode": settings.demo_mode,
+    }

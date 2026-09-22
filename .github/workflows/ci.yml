@@ -22,6 +22,7 @@ jobs:
       - name: Backend import check
         run: python -c "import app.main; print('import ok')"
         env:
+          DEMO_MODE: "true"
           JWT_SECRET: ci-only-test-secret-32-chars-minimum
           WELFARE_OFFICER_ID: WO_7742
           WELFARE_OFFICER_PIN: "0000"
@@ -30,8 +31,9 @@ jobs:
           ADJUTANT_ID: ADJ_102
           ADJUTANT_PIN: "0000"
       - name: Backend tests
-        run: python -m pytest tests/test_backend.py tests/test_phase1.py tests/test_phase2.py tests/test_phase3.py tests/test_phase5_backend.py -q
+        run: python -m pytest tests/test_backend.py tests/test_config_defaults.py tests/test_phase1.py tests/test_phase2.py tests/test_phase3.py tests/test_phase5_backend.py -q
         env:
+          DEMO_MODE: "true"
           JWT_SECRET: ci-only-test-secret-32-chars-minimum
           WELFARE_OFFICER_ID: WO_7742
           WELFARE_OFFICER_PIN: "9481"
@@ -42,6 +44,7 @@ jobs:
       - name: Failure drills
         run: python tests/failure_drill.py
         env:
+          DEMO_MODE: "true"
           JWT_SECRET: ci-only-test-secret-32-chars-minimum
           WELFARE_OFFICER_ID: WO_7742
           WELFARE_OFFICER_PIN: "9481"
@@ -51,15 +54,18 @@ jobs:
           ADJUTANT_PIN: "8821"
       - name: Alembic baseline check
         run: |
-          export DATABASE_URL="sqlite:///./ci_check.db"
+          export DATABASE_URL="sqlite:////tmp/sahayak_ci_check.db"
+          rm -f /tmp/sahayak_ci_check.db /tmp/sahayak_ci_check.db-shm /tmp/sahayak_ci_check.db-wal
           alembic upgrade head
           alembic check
-          rm -f ci_check.db
+          rm -f /tmp/sahayak_ci_check.db /tmp/sahayak_ci_check.db-shm /tmp/sahayak_ci_check.db-wal
         env:
+          DEMO_MODE: "true"
           JWT_SECRET: ci-only-test-secret-32-chars-minimum
       - name: Model eval smoke (synthetic, small n)
         run: python eval_model.py --seed 42 --n 300
         env:
+          DEMO_MODE: "true"
           JWT_SECRET: ci-only-test-secret-32-chars-minimum
           WELFARE_OFFICER_ID: WO_7742
           WELFARE_OFFICER_PIN: "9481"

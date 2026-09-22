@@ -17,7 +17,7 @@ export function LoginPortal() {
   const handleQuickFill = (persona) => {
     setFullName(persona.name);
     setServiceId(persona.serviceNo);
-    setPassword('');
+    setPassword('ServicePass@2026');
     setErrorMessage(null);
   };
 
@@ -128,16 +128,19 @@ export function LoginPortal() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-[#587068] mb-1">
-                Password
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[11px] font-bold text-[#587068]">
+                  Password
+                </label>
+                <span className="text-[10px] text-[#27705c] font-medium">Demo: ServicePass@2026</span>
+              </div>
               <div className="relative">
                 <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa6a1]" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
+                  placeholder="Password (Demo: ServicePass@2026)"
                   required
                   className="w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] pl-9 pr-3 py-2.5 text-xs text-[#18342e] outline-none focus:border-[#77a993] transition-colors"
                 />
@@ -161,8 +164,11 @@ export function LoginPortal() {
           </form>
 
           <div className="pt-4 border-t border-[#edf1ef]">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#8ba099] mb-2.5">
-              Quick Verified Personas
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#8ba099]">
+                Quick Verified Personas
+              </div>
+              <span className="text-[10px] text-[#708780]">1-click demo login</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_PERSONAS.map((p) => (

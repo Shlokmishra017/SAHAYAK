@@ -1,6 +1,7 @@
 """Sahayak backend entrypoint."""
 
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -75,7 +76,7 @@ async def lifespan(app: FastAPI):
                 tier=tier,
                 origin="device_fusion" if idx != 2 else "hr_channel",
                 reason_codes=reason_codes,
-                opened_at="2026-09-11T09:30:00Z",
+                opened_at=(datetime.now(timezone.utc) - timedelta(hours=idx * 4 + 2)).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 status="open",
                 unit_context=row["unit_name"],
                 h_band=4 if tier == "critical" else (3 if tier == "elevated" else 2),

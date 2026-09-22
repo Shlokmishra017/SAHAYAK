@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, RefreshCw, EyeOff } from 'lucide-react';
+import { Shield, RefreshCw, EyeOff, Award, Cpu, Lock, Globe, Users, BookOpen } from 'lucide-react';
 import { PageIntro, Stat } from '../layout/PageIntro';
 import { BackendErrorState, DemoModeBanner } from '../common/DemoModeBanner';
 import {
@@ -82,6 +82,86 @@ export function TeamPulseView() {
           </div>
         }
       />
+
+      {/* Command Zero-Stigmatization Privacy Banner */}
+      <div className="mb-6 rounded-2xl border border-[#cbe4d5] bg-gradient-to-br from-[#f2f8f4] to-[#eaf4ee] p-4 sm:p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#174c42] text-white">
+            <Shield size={18} />
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#1d5c4b]">
+                Command Zero-Stigmatization Boundary (Z2 Tier)
+              </h3>
+              <span className="rounded-full bg-[#d7ecdf] px-2.5 py-0.5 text-[10px] font-bold text-[#185544]">
+                K-Anonymity (n≥5) Protected
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-[#3c6457]">
+              <strong>Strict Privacy Guarantee:</strong> Individual jawan wellness files, personal names, and psychological records are strictly unavailable in this command view. Aggregated exclusively at company/cohort level for strategic troop rotation, deployment balancing, and rest-cycle planning.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Why Sahayak — Key Differentiators for Command (Task 5) */}
+      <div className="mb-6 rounded-2xl border border-[#d2e8db] bg-gradient-to-br from-[#f2f8f4] to-[#eaf4ee] p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#174c42] text-white">
+            <Award size={18} />
+          </div>
+          <div className="flex-1 space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#1d5c4b]">Why Sahayak — Command Differentiators</h3>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 text-[11px]">
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Shield className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Aggregate Only</div>
+                  <div className="text-[#3c6457]">No individual profiles — cohort-level insights only</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Cpu className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Operational Context</div>
+                  <div className="text-[#3c6457]">Fatigue calibrated to deployment, duty, leave patterns</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Users className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Welfare-Driven</div>
+                  <div className="text-[#3c6457]">Outputs drive rest planning, not disciplinary action</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Lock className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Controlled Access</div>
+                  <div className="text-[#3c6457]">Identity requires dual-custody break-glass</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Globe className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Field-Ready</div>
+                  <div className="text-[#3c6457]">Offline-capable, mobile PWA, Hindi support</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Prototype Validation Disclaimer (Task 8) */}
+      <div className="mb-6 rounded-xl border border-[#dfe8e3] bg-[#f7faf8] p-4">
+        <div className="flex items-center gap-2 text-[11px] text-[#6c7d78]">
+          <BookOpen size={14} className="text-[#8a9a94]" />
+          <strong className="text-[#3c6457]">Prototype Validation Notice:</strong>
+          <span>Command analytics are derived from synthetic longitudinal data for pipeline validation. Production deployment requires retraining and operational validation on authorized institutional datasets. Prototype validation ≠ operational validation.</span>
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Stat

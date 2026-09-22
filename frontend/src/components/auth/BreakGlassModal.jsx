@@ -7,6 +7,7 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
   const { showToast } = useAppState();
 
   const [custodians, setCustodians] = useState([]);
+  const [isDemoModeActive, setIsDemoModeActive] = useState(false);
   const [c1Id, setC1Id] = useState('');
   const [c1Pin, setC1Pin] = useState('');
   const [c2Role, setC2Role] = useState('medical_officer');
@@ -24,11 +25,23 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
       fetchCustodiansInfo().then((res) => {
         const list = res?.authorized_custodians || [];
         setCustodians(list);
+        if (res?.demo_mode || import.meta.env.VITE_DEMO_MODE === 'true') {
+          setIsDemoModeActive(true);
+        }
       }).catch(() => {});
     }
   }, [isOpen]);
 
   if (!isOpen || !caseItem) return null;
+
+  const handleFillDemoCustodians = () => {
+    setC1Id('WO_7742');
+    setC1Pin('9481');
+    setC2Role('medical_officer');
+    setC2Id('MO_3109');
+    setC2Pin('6205');
+    setJustification('Emergency welfare de-anonymization protocol for urgent life-safety support.');
+  };
 
   const handleAuthorize = async (e) => {
     e.preventDefault();
@@ -100,6 +113,27 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
                 <strong>Strict compliance:</strong> Revealing identity requires concurrent authorization from two distinct authorized officers. Every attempt is permanently logged into the SHA-256 audit ledger. Disclosure is minimum-necessary only.
               </div>
             </div>
+
+            {isDemoModeActive && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 text-xs text-emerald-900 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-emerald-950 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Demo Evaluation Helper
+                  </div>
+                  <div className="text-[11px] text-emerald-800">
+                    Dual-custody demo credentials available: <strong>WO_7742</strong> (PIN: 9481) &amp; <strong>MO_3109</strong> (PIN: 6205)
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleFillDemoCustodians}
+                  className="shrink-0 px-2.5 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-[11px] transition-colors shadow-sm"
+                >
+                  Use Demo Custodians
+                </button>
+              </div>
+            )}
 
             <div className="space-y-3">
               <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">

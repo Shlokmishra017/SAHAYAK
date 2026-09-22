@@ -102,6 +102,36 @@ export function CasesView() {
         }
       />
 
+      {/* Welfare Pipeline Lifecycle Summary Bar */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-[#d2e8db] bg-[#f7faf8] p-3">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#638077]">1. Operational Signals</div>
+          <div className="text-lg font-bold text-[#1f4a3e] mt-0.5">{welfareCases?.length || 0} Flagged</div>
+          <div className="text-[10px] text-[#638077]">Calibrated HR & device egress</div>
+        </div>
+        <div className="rounded-xl border border-[#d2e8db] bg-[#f7faf8] p-3">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#638077]">2. Active Triage</div>
+          <div className="text-lg font-bold text-[#1f4a3e] mt-0.5">
+            {welfareCases?.filter(c => ['open', 'in_review'].includes(c.status)).length || 0} Cases
+          </div>
+          <div className="text-[10px] text-[#638077]">Prioritized for officer review</div>
+        </div>
+        <div className="rounded-xl border border-[#d2e8db] bg-[#f7faf8] p-3">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#638077]">3. Support Active</div>
+          <div className="text-lg font-bold text-[#1f4a3e] mt-0.5">
+            {welfareCases?.filter(c => ['intervention_active', 'follow_up_due'].includes(c.status)).length || 0} Dispatched
+          </div>
+          <div className="text-[10px] text-[#638077]">Counseling & rest measures</div>
+        </div>
+        <div className="rounded-xl border border-[#d2e8db] bg-[#f7faf8] p-3">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#638077]">4. Closed / Resolved</div>
+          <div className="text-lg font-bold text-[#1f4a3e] mt-0.5">
+            {welfareCases?.filter(c => c.status === 'closed').length || 0} Resolved
+          </div>
+          <div className="text-[10px] text-[#638077]">Outcomes logged to audit ledger</div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-[#dfe8e3] bg-white shadow-[0_8px_30px_rgba(30,72,58,0.035)]">
         <div className="flex flex-col gap-3 border-b border-[#edf1ef] p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">

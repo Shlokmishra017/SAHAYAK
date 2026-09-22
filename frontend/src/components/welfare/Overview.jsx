@@ -6,7 +6,13 @@ import {
   ChevronRight,
   Sparkles,
   AlertCircle,
-  BellRing
+  BellRing,
+  Shield,
+  Lock,
+  Cpu,
+  Globe,
+  Users,
+  Award
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageIntro, Stat } from '../layout/PageIntro';
@@ -145,12 +151,61 @@ export function Overview() {
           detail="Unacknowledged signals"
           accent="text-[#bc684f]"
         />
-        <Stat
+<Stat
           label="Total in queue"
           value={String((welfareCases || []).length).padStart(2, '0')}
           detail="All tracked cases"
           accent="text-[#397c68]"
         />
+      </div>
+
+      {/* Why Sahayak — Key Differentiators (P0 Task 5) */}
+      <div className="mb-6 rounded-2xl border border-[#d2e8db] bg-gradient-to-br from-[#f2f8f4] to-[#eaf4ee] p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#174c42] text-white">
+            <Award size={18} />
+          </div>
+          <div className="flex-1 space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#1d5c4b]">Why Sahayak — Five Differentiators</h3>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 text-[11px]">
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Shield className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Privacy by Architecture</div>
+                  <div className="text-[#3c6457]">Sensitive data minimized before reaching command</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Cpu className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Operational Context</div>
+                  <div className="text-[#3c6457]">Stress calibrated to deployment, duty, leave patterns</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Users className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Welfare-First Intervention</div>
+                  <div className="text-[#3c6457]">Output is support workflow, not surveillance score</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Lock className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Controlled Identity Access</div>
+                  <div className="text-[#3c6457]">Break-glass requires dual-custody authorization</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-xl bg-white/70 p-2.5">
+                <Globe className="shrink-0 mt-0.5 size-4 text-[#286c58]" />
+                <div>
+                  <div className="font-semibold text-[#1d5c4b]">Field Reality</div>
+                  <div className="text-[#3c6457]">Works offline, Hindi support, mobile PWA</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mb-3 flex items-center justify-between">
