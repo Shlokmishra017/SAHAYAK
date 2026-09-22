@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageIntro, Stat } from '../layout/PageIntro';
+import { BackendErrorState, DemoModeBanner } from '../common/DemoModeBanner';
 import {
   Avatar,
-  getCaseInitials,
-  getCasePseudonymName,
-  getCaseTone,
   formatTimeAgo
 } from '../welfare/caseHelpers';
 import { InterventionModal } from './InterventionModal';
+import { fetchRecentInterventions } from '../../services/api';
 import { useAppState } from '../../context/AppStateContext';
 
 export function InterventionsView() {
@@ -18,29 +17,51 @@ export function InterventionsView() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
+  const [recent, setRecent] = useState([]);
+  const [loadError, setLoadError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const casesWithInterventions = (welfareCases || []).filter(
-    (c) => c.interventions_count > 0 || c.status === 'intervention_active'
-  );
-
-  const displayList = casesWithInterventions.length > 0 ? casesWithInterventions : (welfareCases || []).slice(0, 5);
-
-  const handleOpenCase = (item) => {
-    if (item?.case_id) {
-      navigate(`/welfare/cases/${item.case_id}`);
+  const loadRecent = async () => {
+    try {
+      setLoadError(null);
+      const data = await fetchRecentInterventions(20);
+      setRecent(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setLoadError(err?.message || 'Interventions could not be loaded.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadRecent();
+  }, []);
+
+  const cases = welfareCases || [];
+  const activeCount = cases.filter((c) => c.status === 'intervention_active').length;
+  const followUpCount = cases.filter((c) => c.status === 'follow_up_due').length;
+  const withOutcome = recent.filter((r) => r.outcome).length;
+
+  const handleOpenCase = (caseId) => {
+    if (caseId) navigate(`/welfare/cases/${caseId}`);
+  };
+
   const handleStartIntervention = () => {
-    setSelectedCase(displayList[0] || welfareCases?.[0] || null);
+    setSelectedCase(cases[0] || null);
     setModalOpen(true);
   };
 
   return (
     <>
+      <DemoModeBanner />
+      {loadError && (
+        <div className="mb-4">
+          <BackendErrorState message={loadError} onRetry={loadRecent} />
+        </div>
+      )}
       <PageIntro
         title="Interventions"
-        description="Support conversations, follow-ups, and care actions in one place."
+        description="Support conversations, follow-ups, and recorded outcomes in one place."
         action={
           <button
             onClick={handleStartIntervention}
@@ -53,21 +74,21 @@ export function InterventionsView() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Stat
-          label="This month"
-          value={String(Math.max(displayList.length, 12))}
-          detail="Care actions recorded"
+          label="Active interventions"
+          value={String(activeCount)}
+          detail="Cases in intervention"
           accent="text-[#397c68]"
         />
         <Stat
           label="Follow-ups due"
-          value={String((welfareCases || []).filter((c) => c.status === 'in_review').length || 4)}
-          detail="Scheduled review"
+          value={String(followUpCount)}
+          detail="Awaiting follow-up outcome"
           accent="text-[#bc684f]"
         />
         <Stat
-          label="Completed"
-          value={String(Math.max(displayList.length - 2, 8))}
-          detail="75% completion rate"
+          label="Outcomes recorded"
+          value={String(withOutcome)}
+          detail="In recent records below"
           accent="text-[#397c68]"
         />
       </div>
@@ -78,42 +99,53 @@ export function InterventionsView() {
             Recent intervention records
           </h2>
           <span className="text-[11px] font-bold text-[#27705c]">
-            {displayList.length} recorded actions
+            {recent.length} recorded actions
           </span>
         </div>
 
-        <div className="divide-y divide-[#edf1ef]">
-          {displayList.map((item, i) => (
-            <div
-              key={item.case_id}
-              onClick={() => handleOpenCase(item)}
-              className="flex items-center justify-between py-4 cursor-pointer hover:bg-[#f8fbf9] px-2 rounded-lg transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Avatar
-                  initials={getCaseInitials(item)}
-                  tone={getCaseTone(item.tier)}
-                />
-                <div>
-                  <div className="text-[13px] font-semibold text-[#2d453e]">
-                    {i % 2 === 0 ? 'Welfare counseling & informal connect' : 'Peer buddy nudge scheduled'}
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-[#899791]">
-                    {getCasePseudonymName(item)} · {item.case_id} · {item.unit_context || 'Sector Unit'}
+        {isLoading ? (
+          <div className="py-6 text-center text-xs text-[#8a9a94]">Loading interventions…</div>
+        ) : recent.length === 0 ? (
+          <div className="py-6 text-center text-xs text-[#8a9a94]">
+            No interventions recorded yet. Log the first care action above.
+          </div>
+        ) : (
+          <div className="divide-y divide-[#edf1ef]">
+            {recent.map((item) => (
+              <div
+                key={item.intervention_id}
+                onClick={() => handleOpenCase(item.case_id)}
+                className="flex items-center justify-between py-4 cursor-pointer hover:bg-[#f8fbf9] px-2 rounded-lg transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    initials={(item.kind || 'WI').slice(0, 2).toUpperCase()}
+                    tone={item.outcome ? 'green' : 'amber'}
+                  />
+                  <div>
+                    <div className="text-[13px] font-semibold text-[#2d453e] capitalize">
+                      {(item.kind || 'welfare intervention').replace(/_/g, ' ')}
+                      {item.outcome ? ` — ${item.outcome.replace(/_/g, ' ')}` : ''}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-[#899791]">
+                      {item.case_id}
+                      {item.target_concern ? ` · ${item.target_concern.replace(/_/g, ' ')}` : ''}
+                      {item.follow_up_date ? ` · follow-up ${item.follow_up_date}` : ''}
+                    </div>
                   </div>
                 </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-[#9aa6a1] block">
+                    {formatTimeAgo(item.performed_at)}
+                  </span>
+                  <span className="text-[10px] font-semibold text-[#27705c]">
+                    {item.officer_id || ''}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[10px] text-[#9aa6a1] block">
-                  {formatTimeAgo(item.opened_at)}
-                </span>
-                <span className="text-[10px] font-semibold text-[#27705c]">
-                  Capt. Meera Nair
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {modalOpen && (
@@ -121,6 +153,7 @@ export function InterventionsView() {
           isOpen={modalOpen}
           close={() => setModalOpen(false)}
           currentCase={selectedCase}
+          onInterventionLogged={loadRecent}
         />
       )}
     </>

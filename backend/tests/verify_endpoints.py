@@ -40,9 +40,19 @@ def run_tests():
         print("Attest:", r.status_code)
         assert r.status_code == 200
 
-        r = client.get("/v1/device/risk-band/test-pseudo", headers=h_z0)
+        from app.ml.synthetic_generator import cohort_manager
+        real_pseudo = cohort_manager.personnel_df.iloc[0]["pseudonym_id"]
+        r = client.get(f"/v1/device/risk-band/{real_pseudo}", headers=h_z0)
         print("Risk-band:", r.status_code)
         assert r.status_code == 200
+        band = r.json()
+        assert band["model_version"] == "sahayak-hr-gbr-v2.0-synthetic", band
+        assert band["confidence"] in ("standard", "insufficient_history"), band
+        assert "trend" in band, band
+
+        r = client.get("/v1/device/risk-band/unknown-pseudo-id", headers=h_z0)
+        print("Risk-band unknown:", r.status_code)
+        assert r.status_code == 404, r.text
 
         now_iso = datetime.now(timezone.utc).isoformat()
         r = client.post("/v1/device/escalations", json={
@@ -65,7 +75,7 @@ def run_tests():
 
         r = client.post("/v1/device/erasure", json={
             "pseudonym_id": "pseudo-esc-1",
-            "confirmation_token": "CONFIRMED"
+            "confirmation_token": "CONFIRM-pseudo-esc-1"
         }, headers=h_z0)
         print("Erasure:", r.status_code, r.json() if r.status_code == 200 else r.text)
         assert r.status_code == 200
@@ -76,7 +86,16 @@ def run_tests():
         assert r.status_code == 200
         cases = r.json()
         assert len(cases) > 0
-        first_case_id = cases[0]["case_id"]
+        # Fresh case so the script never depends on shared DB state
+        r = client.post("/v1/device/escalations", json={
+            "pseudonym_id": "pseudo-verify-1",
+            "tier": "elevated",
+            "origin": "device_fusion",
+            "reason_codes": ["RC_SUSTAINED_DEPLOYMENT"],
+            "detected_at": now_iso
+        }, headers=h_z0)
+        assert r.status_code == 200, r.text
+        first_case_id = r.json()["case_id"]
 
         r = client.get(f"/v1/welfare/cases/{first_case_id}", headers=h_wo)
         print(f"Case detail ({first_case_id}):", r.status_code)

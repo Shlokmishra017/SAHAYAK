@@ -13,14 +13,16 @@ import {
   formatTimeAgo
 } from './caseHelpers';
 import { InterventionModal } from '../interventions/InterventionModal';
+import { BackendErrorState, DemoModeBanner } from '../common/DemoModeBanner';
 import { useAppState } from '../../context/AppStateContext';
 
 export function CasesView() {
-  const { welfareCases, refreshGlobalData } = useAppState();
+  const { welfareCases, refreshGlobalData, backendError } = useAppState();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('needs_attention');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
   const [selectedCaseForModal, setSelectedCaseForModal] = useState(null);
@@ -35,6 +37,15 @@ export function CasesView() {
     return (welfareCases || []).filter((item) => {
       if (severityFilter !== 'all' && item.tier !== severityFilter) return false;
 
+      // Action-first default: hide closed/declined unless asked for.
+      if (statusFilter === 'needs_attention') {
+        if (item.status === 'closed' || item.status === 'declined') return false;
+      } else if (statusFilter === 'follow_up_due') {
+        if (item.status !== 'follow_up_due' && item.status !== 'intervention_active') return false;
+      } else if (statusFilter !== 'all' && item.status !== statusFilter) {
+        return false;
+      }
+
       if (query.trim()) {
         const q = query.toLowerCase();
         const id = (item.case_id || '').toLowerCase();
@@ -47,7 +58,7 @@ export function CasesView() {
       }
       return true;
     });
-  }, [welfareCases, severityFilter, query]);
+  }, [welfareCases, severityFilter, statusFilter, query]);
 
   const handleRowClick = (item) => {
     if (item?.case_id) {
@@ -62,6 +73,12 @@ export function CasesView() {
 
   return (
     <>
+      <DemoModeBanner />
+      {backendError && (
+        <div className="mb-4">
+          <BackendErrorState message={backendError} onRetry={handleRefresh} />
+        </div>
+      )}
       <PageIntro
         title="Cases"
         description="A complete queue of welfare cases requiring care and follow-up."
@@ -104,6 +121,25 @@ export function CasesView() {
                   }`}
                 >
                   {sev === 'all' ? 'All tiers' : sev}
+                </button>
+              ))}
+            </div>
+            <div className="hidden sm:flex items-center gap-1 rounded-lg bg-[#f0f5f2] p-0.5 text-xs">
+              {[
+                ['needs_attention', 'Needs attention'],
+                ['follow_up_due', 'Follow-up due'],
+                ['all', 'Everything']
+              ].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setStatusFilter(val)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    statusFilter === val
+                      ? 'bg-white text-[#174c42] shadow-xs'
+                      : 'text-[#6c7d78] hover:text-[#174c42]'
+                  }`}
+                >
+                  {label}
                 </button>
               ))}
             </div>

@@ -108,7 +108,7 @@ const GUIDANCE_ARTICLES = {
 
   'Privacy by default': {
     title: 'Privacy by default',
-    subtitle: 'Zero-Trust Enclave & Statutory DPDP Act Governance',
+    subtitle: 'On-Device Privacy & Role-Based Governance',
     icon: LockKeyhole,
     tag: 'Governance & Trust',
     readTime: '3 min read',
@@ -138,8 +138,8 @@ const GUIDANCE_ARTICLES = {
     ],
     sections: [
       {
-        heading: 'Zero-Trust Client Enclave (Z0 Processing)',
-        body: 'All journal entries, mood logs, and continuous biometric scores are processed in local on-device memory. No raw journal words or continuous score numbers ever leave the phone.'
+        heading: 'On-Device Wellness Check',
+        body: 'All journal entries, mood logs, and self-reported wellness indicators are processed in local on-device memory. No raw journal words or continuous score numbers ever leave the phone.'
       },
       {
         heading: 'Closed-Vocabulary Reason Codes',

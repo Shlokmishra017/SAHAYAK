@@ -3,13 +3,15 @@ import {
   fetchWelfareCases,
   fetchCommanderHeatmap,
   fetchAuditLedger,
-  submitEscalation
+  submitEscalation,
+  submitSelfReferral
 } from '../services/api';
+import { SelfReportedProvider } from '../services/wellnessProviders';
 import {
-  computeLocalWellnessScore,
-  performLocalFusion,
-  analyzeJournalTextLocally
-} from '../services/localModel';
+  enqueueOutbox,
+  listOutbox,
+  drainOutbox
+} from '../services/outbox';
 
 const AppStateContext = createContext();
 
@@ -18,7 +20,7 @@ export const DEMO_PERSONAS = [
     id: 'personnel_vikram',
     role: 'device',
     roleLabel: 'Force Personnel (Jawan)',
-    level: 'Z0 Zone: On-Device Wellness',
+    level: 'Personal wellness space',
     name: 'Vikram Singh',
     rank: 'Constable (GD)',
     serviceNo: 'CAPF-849201',
@@ -30,7 +32,7 @@ export const DEMO_PERSONAS = [
     id: 'welfare_meera',
     role: 'welfare',
     roleLabel: 'Unit Welfare Officer',
-    level: 'Z1 Zone: Welfare Triage Core',
+    level: 'Welfare triage',
     name: 'Capt. Meera Nair',
     rank: 'Captain / Unit Welfare Officer',
     serviceNo: 'WO-7742',
@@ -42,19 +44,19 @@ export const DEMO_PERSONAS = [
     id: 'commander_deshmukh',
     role: 'command',
     roleLabel: 'Battalion / Sector Commander',
-    level: 'Z1 Zone: Commander Strategic Layer',
+    level: 'Command strategy',
     name: 'Col. R. V. Deshmukh',
     rank: 'Colonel / Sector Commander',
     serviceNo: 'CMD-1082',
     unit: 'Sector HQ, Srinagar',
     avatar: 'RD',
-    clearance: 'Command Level (k-Anonymity Guarded)'
+    clearance: 'Command level (aggregates only)'
   },
   {
     id: 'auditor_verma',
     role: 'audit',
     roleLabel: 'Data Protection Officer & Auditor',
-    level: 'Auditor & Trust Compliance Proof',
+    level: 'Trust audit',
     name: 'Inspector Alok Verma',
     rank: 'DPO / Systems Auditor',
     serviceNo: 'AUD-9901',
@@ -69,8 +71,7 @@ export function AppStateProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeRole, setActiveRole] = useState('device');
 
-  const loginWithResolvedUser = (userObj) => {
-    let internalRole = 'device';
+  const loginWithResolvedUser = (userObj) => {    let internalRole = 'device';
     if (userObj.role === 'Z1_WELFARE_OFFICER' || userObj.role === 'welfare') {
       internalRole = 'welfare';
     } else if (userObj.role === 'Z1_COMMANDER' || userObj.role === 'command') {
@@ -98,13 +99,6 @@ export function AppStateProvider({ children }) {
     setActiveRole(internalRole);
     setIsAuthenticated(true);
     showToast(`Access Granted: ${resolved.rank} ${resolved.name} (${resolved.level.split('—')[0].trim()})`, 'success');
-  };
-
-  const loginAsPersona = (persona) => {
-    setCurrentUser(persona);
-    setActiveRole(persona.role);
-    setIsAuthenticated(true);
-    showToast(`Welcome, ${persona.rank} ${persona.name}! (${persona.level.split('—')[0].trim()})`, 'success');
   };
 
   const logout = () => {
@@ -150,19 +144,23 @@ export function AppStateProvider({ children }) {
     isEscalationRequired: true
   });
   const [escalationOutbox, setEscalationOutbox] = useState([]);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
 
   const [welfareCases, setWelfareCases] = useState([]);
   const [commanderHeatmap, setCommanderHeatmap] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [lastEgressPayload, setLastEgressPayload] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [backendError, setBackendError] = useState(null);
 
   useEffect(() => {
-    const wResult = computeLocalWellnessScore(checkIns);
+    const wResult = SelfReportedProvider.scoreCheckIns(checkIns);
     setLocalWScore(wResult.wScore);
 
     const hasAcute = localJournalEntries.some(j => j.analysis?.hasAcuteDistress);
-    const fusion = performLocalFusion(
+    const fusion = SelfReportedProvider.fuse(
       wResult.wScore,
       hBandInfo.h_band,
       { tau1: 0.45, tau2: 0.65, tau3: 0.85 },
@@ -173,6 +171,7 @@ export function AppStateProvider({ children }) {
 
   const refreshGlobalData = async () => {
     try {
+      setBackendError(null);
       if (activeRole === 'welfare') {
         const cases = await fetchWelfareCases();
         setWelfareCases(cases);
@@ -187,6 +186,9 @@ export function AppStateProvider({ children }) {
       }
     } catch (err) {
       console.error('Failed to sync global state:', err);
+      const msg = err?.message || 'data could not be loaded.';
+      setBackendError(msg);
+      showToast(`Backend unavailable: ${msg}`, 'error');
     }
   };
 
@@ -194,28 +196,53 @@ export function AppStateProvider({ children }) {
     refreshGlobalData();
   }, [activeRole]);
 
-  useEffect(() => {
-    if (!isAirplaneMode && escalationOutbox.length > 0) {
-      const processQueue = async () => {
-        const failedIds = new Set();
-
-        for (const payload of escalationOutbox) {
-          try {
-            await submitEscalation(payload);
-            showToast(`Escalation dispatched: ${payload.tier.toUpperCase()} tier`, "success");
-          } catch (err) {
-            console.error('Failed to send queued escalation:', err);
-            failedIds.add(payload.client_event_id);
-            showToast(`Failed to dispatch escalation: ${payload.tier.toUpperCase()} tier`, "error");
-          }
-        }
-
-        setEscalationOutbox(prev => prev.filter(item => !failedIds.has(item.client_event_id)));
-      };
-
-      processQueue();
+  const refreshOutboxCount = async () => {
+    try {
+      const entries = await listOutbox();
+      setEscalationOutbox(entries);
+    } catch {
+      // IndexedDB unavailable (private mode?) — outbox stays in-memory empty.
     }
-  }, [isAirplaneMode, escalationOutbox]);
+  };
+
+  const syncOutbox = async () => {
+    try {
+      const { synced } = await drainOutbox(
+        {
+          escalation: (payload) => submitEscalation(payload),
+          self_referral: (payload) =>
+            submitSelfReferral(payload.pseudonym_id, payload.support_type_preference)
+        },
+        showToast
+      );
+      if (synced > 0) refreshGlobalData();
+    } catch (err) {
+      console.error('Outbox sync failed:', err);
+    } finally {
+      refreshOutboxCount();
+    }
+  };
+
+  useEffect(() => {
+    refreshOutboxCount();
+    const onOnline = () => {
+      setIsOnline(true);
+      syncOutbox();
+    };
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOnline && !isAirplaneMode) {
+      syncOutbox();
+    }
+  }, [isOnline, isAirplaneMode]);
 
   const addCheckIn = (mood, sleepHours, fatigue) => {
     const today = new Date().toISOString().split('T')[0];
@@ -225,7 +252,7 @@ export function AppStateProvider({ children }) {
   };
 
   const addJournalEntry = (text, language = 'Hindi') => {
-    const analysis = analyzeJournalTextLocally(text);
+    const analysis = SelfReportedProvider.analyzeJournal(text);
     const newEntry = {
       id: `j-${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
@@ -248,34 +275,44 @@ export function AppStateProvider({ children }) {
   };
 
   const triggerDeviceEscalation = async () => {
-    if (isAirplaneMode) {
-      showToast("✈️ Airplane Mode Active: Transmission queued in on-device outbox.", "info");
-      setEscalationOutbox(prev => [...prev, {
-        client_event_id: crypto.randomUUID(),
-        pseudonym_id: pseudonymId,
-        tier: localFusionResult.tier,
-        reason_codes: ["RC_SUSTAINED_DEPLOYMENT", "RC_SLEEP_DEGRADATION_TREND"],
-        detected_at: new Date().toISOString()
-      }]);
-      return;
-    }
-
     const payload = {
       client_event_id: crypto.randomUUID(),
       pseudonym_id: pseudonymId,
       tier: localFusionResult.tier,
-      origin: "device_fusion",
+      origin: 'device_fusion',
       reason_codes: [
-        "RC_SUSTAINED_DEPLOYMENT",
-        "RC_SLEEP_DEGRADATION_TREND",
-        ...(localJournalEntries.some(j => j.analysis?.hasAcuteDistress) ? ["RC_ACUTE_DISTRESS_MARKER"] : [])
+        'RC_SUSTAINED_DEPLOYMENT',
+        'RC_SLEEP_DEGRADATION_TREND',
+        ...(localJournalEntries.some(j => j.analysis?.hasAcuteDistress) ? ['RC_ACUTE_DISTRESS_MARKER'] : [])
       ],
       detected_at: new Date().toISOString()
     };
 
+    if (isAirplaneMode || !isOnline) {
+      await enqueueOutbox('escalation', payload);
+      await refreshOutboxCount();
+      showToast('Offline: escalation saved locally and will sync on reconnect.', 'info');
+      return;
+    }
+
     setLastEgressPayload(payload);
-    const res = await submitEscalation(payload);
-    showToast(`Escalation transmitted: Whitelist Reason Codes Only (Tier: ${payload.tier.toUpperCase()})`, "success");
+    try {
+      const res = await submitEscalation(payload);
+      if (res?.__demo) {
+        showToast('Demo mode: escalation simulated locally, not submitted to backend.', 'info');
+      } else {
+        showToast(`Escalation transmitted: Whitelist Reason Codes Only (Tier: ${payload.tier.toUpperCase()})`, 'success');
+      }
+    } catch (err) {
+      if (err?.code === 'BACKEND_UNAVAILABLE') {
+        await enqueueOutbox('escalation', payload);
+        await refreshOutboxCount();
+        showToast('Backend unreachable: escalation saved locally and will sync on reconnect.', 'info');
+        return;
+      }
+      showToast(err?.message || 'Escalation was not submitted.', 'error');
+      throw err;
+    }
     refreshGlobalData();
   };
 
@@ -289,10 +326,8 @@ export function AppStateProvider({ children }) {
       currentUser,
       isAuthenticated,
       loginWithResolvedUser,
-      loginAsPersona,
       logout,
       activeRole,
-      setActiveRole,
       pseudonymId,
       isAirplaneMode,
       setIsAirplaneMode,
@@ -309,8 +344,12 @@ export function AppStateProvider({ children }) {
       auditLogs,
       lastEgressPayload,
       notification,
+      backendError,
       showToast,
-      refreshGlobalData
+      refreshGlobalData,
+      escalationOutbox,
+      isOnline,
+      syncOutbox
     }}>
       {children}
     </AppStateContext.Provider>

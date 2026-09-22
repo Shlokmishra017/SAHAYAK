@@ -36,26 +36,42 @@ def attest_device(request: Request, req: DeviceAttestationRequest, _user: dict =
     )
 
 @router.get("/risk-band/{pseudonym_id}", response_model=RiskBandResponse)
-def get_risk_band(pseudonym_id: str, _user: dict = Depends(require_roles("Z0_PERSONNEL"))):
+def get_risk_band(
+    pseudonym_id: str,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(require_roles("Z0_PERSONNEL")),
+):
     # The device pulls the HR risk band and fuses locally, so private
     # on-device state never has to leave the phone.
     record = cohort_manager.get_personnel_by_pseudonym(pseudonym_id)
-    if not record:
-        raise HTTPException(status_code=503, detail="Cohort data not initialized yet.")
+    if record is None:
+        if cohort_manager.personnel_df.empty:
+            raise HTTPException(status_code=503, detail="Cohort data not initialized yet.")
+        raise HTTPException(status_code=404, detail="Personnel record not found.")
 
     ctx = record["force_type"]
-    baseline = cohort_manager.cohort_stats.get(ctx, {"median": 0.50, "mad": 0.12})
+    baseline = cohort_manager.cohort_stats.get(ctx, {"median": 0.50, "mad": 0.12, "count": 0})
 
-    raw_score, h_band, reason_codes, _ = hr_risk_engine.predict_individual_risk(record, baseline)
+    assessed = hr_risk_engine.predict_with_confidence(record, baseline)
+
+    # Trend from this person's recorded case history (never fabricated).
+    from app.ml.trajectory import build_trajectory
+    history = list(db.scalars(
+        select(CaseRecord).where(CaseRecord.pseudonym_id == pseudonym_id)
+    ))
+    trajectory = build_trajectory(history)
 
     return RiskBandResponse(
         pseudonym_id=pseudonym_id,
         as_of=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        h_band=h_band,
-        reason_codes=reason_codes,
+        h_band=assessed["h_band"],
+        reason_codes=assessed["reason_codes"],
         thresholds={"tau1": 0.45, "tau2": 0.65, "tau3": 0.85},
         unit_baseline_median=baseline["median"],
-        model_version="sahayak-hr-lgbm-v1.4"
+        model_version=assessed["model_version"],
+        confidence=assessed["confidence"],
+        confidence_note=assessed["confidence_note"],
+        trend=trajectory["trend"],
     )
 
 @router.post("/escalations")
@@ -113,6 +129,20 @@ def submit_escalation(
         metadata={"tier": payload.tier, "reason_count": len(clean_codes)}
     )
 
+    # Critical welfare signals raise an alert: generated → notified (or
+    # recorded with delivery note) → status persisted. See alerts_api.
+    if payload.tier == "critical" or "RC_ACUTE_DISTRESS_MARKER" in clean_codes:
+        from app.routes.alerts_api import raise_alert
+        raise_alert(
+            db,
+            case_id=case_id,
+            pseudonym_id=payload.pseudonym_id,
+            tier=payload.tier,
+            reason=";".join(clean_codes),
+            actor_sub=payload.pseudonym_id[:8],
+        )
+        db.commit()
+
     return {"status": "accepted", "case_id": case_id, "tier": payload.tier}
 
 @router.post("/self-referral")
@@ -157,18 +187,50 @@ def request_data_erasure(
     db: Session = Depends(get_db),
     _user: dict = Depends(require_roles("Z0_PERSONNEL")),
 ):
+    # Confirmation tokens are validated, never ignored. The client must echo
+    # the explicit per-pseudonym token: CONFIRM-<PSEUDONYM_ID>.
+    expected_token = f"CONFIRM-{req.pseudonym_id}"
+    if req.confirmation_token != expected_token:
+        raise HTTPException(
+            status_code=400,
+            detail="Valid confirmation token is required. Expected CONFIRM-<pseudonym_id>.",
+        )
+
+    from app.core.database import InterventionRecord
+
     cases = list(db.scalars(select(CaseRecord).where(CaseRecord.pseudonym_id == req.pseudonym_id)))
+    case_ids = [c.case_id for c in cases]
+    interventions_deleted = 0
+    if case_ids:
+        existing = list(
+            db.scalars(select(InterventionRecord).where(InterventionRecord.case_id.in_(case_ids)))
+        )
+        interventions_deleted = len(existing)
+        for item in existing:
+            db.delete(item)
     deleted_count = len(cases)
     for case in cases:
         db.delete(case)
     db.commit()
 
+    # Retention policy: operational case + intervention records for this
+    # pseudonym are deleted; the audit event itself is retained (without
+    # personal content) for accountability, per docs/DataRetention.md.
     audit_ledger.append_log(
         actor_role="personnel_data_principal",
         actor_id=req.pseudonym_id[:8],
-        action="DPDP_ERASURE_PURGE_EXECUTED",
+        action="ERASURE_PURGE_EXECUTED",
         pseudonym_id=req.pseudonym_id,
-        metadata={"purged_cases": deleted_count}
+        metadata={
+            "purged_cases": deleted_count,
+            "purged_interventions": interventions_deleted,
+            "retained": "audit event only (no personal content)",
+        },
     )
 
-    return {"status": "purged", "purged_cases": deleted_count}
+    return {
+        "status": "purged",
+        "purged_cases": deleted_count,
+        "purged_interventions": interventions_deleted,
+        "retained": "audit event retained per retention policy",
+    }

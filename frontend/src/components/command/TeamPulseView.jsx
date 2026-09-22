@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, RefreshCw, EyeOff } from 'lucide-react';
 import { PageIntro, Stat } from '../layout/PageIntro';
+import { BackendErrorState, DemoModeBanner } from '../common/DemoModeBanner';
 import {
   fetchCommanderHeatmap,
   fetchCohesionAnomalies,
@@ -13,9 +14,11 @@ export function TeamPulseView() {
   const [cohortStats, setCohortStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   const loadData = async () => {
     try {
+      setLoadError(null);
       const [hmData, anomData, statsData] = await Promise.all([
         fetchCommanderHeatmap(),
         fetchCohesionAnomalies(),
@@ -26,6 +29,7 @@ export function TeamPulseView() {
       setCohortStats(statsData || null);
     } catch (err) {
       console.error('Failed to load commander data:', err);
+      setLoadError(err?.message || 'Commander data could not be loaded.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -52,6 +56,12 @@ export function TeamPulseView() {
 
   return (
     <>
+      <DemoModeBanner />
+      {loadError && (
+        <div className="mb-4">
+          <BackendErrorState message={loadError} onRetry={handleRefresh} />
+        </div>
+      )}
       <PageIntro
         eyebrow="Command Strategy & Force Readiness"
         title="Team pulse"
@@ -59,7 +69,7 @@ export function TeamPulseView() {
         action={
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-2 rounded-xl border border-[#d2e8db] bg-[#eaf5ef] px-3 py-2 text-[11px] font-bold text-[#286c58]">
-              <Shield size={14} /> Strict k-Anonymity (n ≥ 20) Guaranteed
+              <Shield size={14} /> Small groups hidden for privacy
             </div>
             <button
               onClick={handleRefresh}
@@ -104,6 +114,10 @@ export function TeamPulseView() {
               Sector units
             </span>
           </div>
+          <p className="mb-4 text-[10px] leading-relaxed text-[#8a9a94]">
+            Unit means of member observations; company cells apportion unit totals for demonstration.
+            Cohorts under 20 personnel are redacted to protect identity.
+          </p>
 
           <div className="space-y-4">
             {heatmap.map((cohort, idx) => {

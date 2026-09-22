@@ -7,22 +7,23 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
   const { showToast } = useAppState();
 
   const [custodians, setCustodians] = useState([]);
-  const [c1Id, setC1Id] = useState('WO_7742');
-  const [c1Pin, setC1Pin] = useState('9481');
+  const [c1Id, setC1Id] = useState('');
+  const [c1Pin, setC1Pin] = useState('');
   const [c2Role, setC2Role] = useState('medical_officer');
-  const [c2Id, setC2Id] = useState('MO_3109');
-  const [c2Pin, setC2Pin] = useState('6205');
-  const [justification, setJustification] = useState('Acute distress signal observed. Immediate clinical welfare intervention and medical assessment required.');
+  const [c2Id, setC2Id] = useState('');
+  const [c2Pin, setC2Pin] = useState('');
+  const [justification, setJustification] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [resolvedProfile, setResolvedProfile] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
+      setResolvedProfile(null);
+      setErrorMsg(null);
       fetchCustodiansInfo().then((res) => {
-        if (res?.authorized_custodians_demo) {
-          setCustodians(res.authorized_custodians_demo);
-        }
+        const list = res?.authorized_custodians || [];
+        setCustodians(list);
       }).catch(() => {});
     }
   }, [isOpen]);
@@ -33,6 +34,17 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
+
+    if (c1Id.trim() === c2Id.trim()) {
+      setErrorMsg('Dual custody requires two distinct authorized officers.');
+      setIsLoading(false);
+      return;
+    }
+    if (!justification || justification.trim().length < 20) {
+      setErrorMsg('An explicit operational/medical justification (min 20 characters) is required.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const res = await executeBreakGlass({
@@ -85,7 +97,7 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
             <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
               <div>
-                <strong>Strict Statutory Compliance:</strong> In accordance with CAPF welfare protocols and the DPDP Act, revealing real service identity requires concurrent cryptographic PINs from two distinct authorized officers. Every attempt is permanently logged into the SHA-256 audit ledger.
+                <strong>Strict compliance:</strong> Revealing identity requires concurrent authorization from two distinct authorized officers. Every attempt is permanently logged into the SHA-256 audit ledger. Disclosure is minimum-necessary only.
               </div>
             </div>
 
@@ -120,7 +132,7 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
                       required
                     />
                   </div>
-                  <div className="text-[10px] text-slate-400">Demo PIN: 9481 (Capt. Meera Nair)</div>
+                  <div className="text-[10px] text-slate-400">Enter the custodian authorization PIN via secure input. PINs are never displayed.</div>
                 </div>
 
                 <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
@@ -137,13 +149,8 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
                         value={c2Role}
                         onChange={(e) => {
                           setC2Role(e.target.value);
-                          if (e.target.value === 'medical_officer') {
-                            setC2Id('MO_3109');
-                            setC2Pin('6205');
-                          } else {
-                            setC2Id('ADJ_102');
-                            setC2Pin('8821');
-                          }
+                          setC2Id('');
+                          setC2Pin('');
                         }}
                         className="text-xs px-2 py-1.5 rounded border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-slate-800"
                       >
@@ -170,7 +177,7 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
                     />
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    Demo PIN: {c2Role === 'medical_officer' ? '6205 (Dr. Arvind Rao)' : '8821 (Lt. Col. Gill)'}
+                    Enter the secondary custodian PIN via secure input. PINs are never displayed.
                   </div>
                 </div>
               </div>
@@ -247,20 +254,13 @@ export function BreakGlassModal({ isOpen, onClose, caseItem, onDeAnonymized }) {
                   <span className="text-slate-800 font-medium">{resolvedProfile.unit}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 block uppercase">Blood Group</span>
-                  <span className="text-slate-800 font-medium">{resolvedProfile.blood_group || 'Not recorded'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block uppercase">Base Location</span>
-                  <span className="text-slate-800 font-medium">{resolvedProfile.base_location || 'Sector HQ'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block uppercase">Emergency Contact</span>
-                  <span className="text-slate-800 font-medium">
-                    {resolvedProfile.emergency_contact_name} ({resolvedProfile.emergency_contact_phone})
-                  </span>
+                  <span className="text-[10px] text-slate-400 block uppercase">Disclosure</span>
+                  <span className="text-slate-800 font-medium">Minimum-necessary only (name, rank, unit, service number)</span>
                 </div>
               </div>
+              <p className="text-[10px] leading-relaxed text-slate-500">
+                Sensitive fields (blood group, contact phone, exact location) are withheld by policy.
+              </p>
             </div>
 
             <div className="flex justify-end pt-2 border-t border-slate-100">

@@ -20,6 +20,9 @@ class RiskBandResponse(BaseModel):
     thresholds: Dict[str, float]
     unit_baseline_median: float
     model_version: str
+    confidence: str = "standard"
+    confidence_note: Optional[str] = None
+    trend: str = "insufficient_history"
 
 class EscalationPayload(BaseModel):
     pseudonym_id: str
@@ -27,7 +30,7 @@ class EscalationPayload(BaseModel):
     origin: str = "device_fusion"
     reason_codes: List[str]
     detected_at: str
-    model_version: str = "sahayak-edge-v1.2"
+    model_version: str = "sahayak-edge-v2.0"
 
 class SelfReferralRequest(BaseModel):
     pseudonym_id: str
@@ -60,6 +63,33 @@ class InterventionCreate(BaseModel):
     performed_by_role: str = "welfare_officer"
     officer_id: str
     notes_sanitized: str
+    target_concern: Optional[str] = None
+    follow_up_date: Optional[str] = None
+
+
+class InterventionOutcome(BaseModel):
+    outcome: str
+    outcome_score: Optional[int] = None
+    notes_sanitized: Optional[str] = None
+
+
+class CaseStatusChange(BaseModel):
+    status: str
+
+
+# Welfare case state machine. Terminal states (closed, declined) accept no
+# further transitions; every change is audit-logged.
+CASE_STATUS_TRANSITIONS: Dict[str, List[str]] = {
+    "open": ["in_review", "intervention_active", "declined", "escalated"],
+    "in_review": ["intervention_active", "declined", "escalated", "closed"],
+    "intervention_active": ["follow_up_due", "closed", "escalated"],
+    "follow_up_due": ["intervention_active", "closed", "escalated"],
+    "escalated": ["intervention_active", "closed"],
+    "declined": [],
+    "closed": [],
+}
+
+INTERVENTION_OUTCOMES = ["improved", "stable", "needs_follow_up", "escalated", "unable_to_assess"]
 
 class LabelFeedbackCreate(BaseModel):
     case_id: str
@@ -82,8 +112,10 @@ class CohortHeatmapItem(BaseModel):
     risk_distribution: Optional[Dict[str, Optional[int]]] = None
     workload_score: Optional[float] = None
     rotation_recommendation: Optional[str] = None
+    methodology: Optional[str] = None
+    demonstration_fixture: bool = False
 
-# DPDP right-to-erasure request.
+# Personnel data-erasure request (retention policy: docs/DataRetention.md).
 class ErasureRequest(BaseModel):
     pseudonym_id: str
     confirmation_token: str

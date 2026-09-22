@@ -1,4 +1,31 @@
-"""Synthetic 24-month longitudinal stress profiles across 4 deployment contexts."""
+"""Synthetic longitudinal HR/wellness profiles across 4 deployment contexts.
+
+DATA-GENERATING PROCESS (read before drawing conclusions from metrics):
+- Feature distributions: deployment days ~ Normal(context mean, 25) clipped
+  [0, 180]; rest ratio ~ Beta(5, 2 or 7); leave applications randint(2, 6) with
+  context denial probability (+0.15 when deployed > 60 days); 40% have recent
+  leave (days_since_leave_return 1-90, else 180); transfers randint(0, 4);
+  family co-location Bernoulli (0.25 in field contexts, 0.65 otherwise);
+  night duty ~ Normal(context mean, 20) clipped [10, 160]; duty variance ~
+  Normal(15, 6) clipped [2, 40]; promotion stagnation ~ Exponential(4).
+- Context assumptions: four illustrative operational contexts with different
+  base stress means (0.32-0.58). These are synthetic archetypes, not measured
+  unit data.
+- Latent risk: context base (+ individual jitter) + contributions from a
+  SUBSET of observable features (deployment length, leave-denial ratio, rest
+  ratio, family co-location, night duty, post-leave hazard window 7-21 days)
+  PLUS hidden factors the model cannot observe (random life-event shock,
+  individual resilience trait) PLUS Gaussian noise (std 0.09). Observable-
+  but-excluded features (duty-hour variance, promotion stagnation, transfer
+  count outside reason rules, exact days-since-leave) carry little or no
+  direct signal, so a model trained on all features must generalize instead
+  of inverting the formula. This is still synthetic data: metrics on it are
+  NOT real-world validation.
+- Class imbalance is preserved: the review label (latent >= 0.65) is a
+  minority class, as elevated welfare concern should be.
+- Leakage avoidance: hidden factors and noise are never exposed as features;
+  threshold selection must use the validation split only, never test.
+"""
 
 import numpy as np
 import pandas as pd
@@ -7,11 +34,23 @@ import random
 from typing import Dict
 from app.core.security import IdentityBroker, RealIdentityProfile
 
+# Binary ground-truth definition for evaluation: latent stress at/above this
+# value means the synthetic person "needs review". Fixed and documented; it is
+# a property of the dataset, not a tuned parameter.
+REVIEW_LABEL_THRESHOLD = 0.65
+
+
+def add_review_label(df: pd.DataFrame, threshold: float = REVIEW_LABEL_THRESHOLD) -> pd.DataFrame:
+    """Attach the binary evaluation label. Returns a copy; threshold fixed."""
+    labeled = df.copy()
+    labeled["needs_review"] = (labeled["latent_stress_index"] >= threshold).astype(int)
+    return labeled
+
 DEPLOYMENT_CONTEXTS = [
     {
         "context": "counter_insurgency",
         "force_name": "CRPF 144 Bn (CI Ops)",
-        "base_stress_mean": 0.58,
+        "base_stress_mean": 0.32,
         "base_stress_std": 0.15,
         "avg_deployment_days": 75,
         "leave_denial_prob": 0.28,
@@ -20,7 +59,7 @@ DEPLOYMENT_CONTEXTS = [
     {
         "context": "border_guarding",
         "force_name": "BSF 92 Bn (Forward Post)",
-        "base_stress_mean": 0.52,
+        "base_stress_mean": 0.29,
         "base_stress_std": 0.14,
         "avg_deployment_days": 90,
         "leave_denial_prob": 0.22,
@@ -29,7 +68,7 @@ DEPLOYMENT_CONTEXTS = [
     {
         "context": "public_order",
         "force_name": "RAF 108 Bn (Rapid Action)",
-        "base_stress_mean": 0.44,
+        "base_stress_mean": 0.24,
         "base_stress_std": 0.16,
         "avg_deployment_days": 35,
         "leave_denial_prob": 0.18,
@@ -38,7 +77,7 @@ DEPLOYMENT_CONTEXTS = [
     {
         "context": "static_guarding",
         "force_name": "CISF Plant Security Unit",
-        "base_stress_mean": 0.32,
+        "base_stress_mean": 0.18,
         "base_stress_std": 0.12,
         "avg_deployment_days": 15,
         "leave_denial_prob": 0.10,
@@ -87,16 +126,31 @@ class SyntheticCohortManager:
             night_duty_hours = float(np.clip(np.random.normal(ctx_config["night_shift_mean"], 20), 10, 160))
             duty_hour_variance = float(np.clip(np.random.normal(15, 6), 2, 40))
             promotion_stagnation_yrs = float(np.clip(np.random.exponential(4.0), 0.5, 16.0))
-            
+
+            # Latent risk: observable subset + HIDDEN factors + noise.
+            # Hidden factors (life-event shock, resilience trait, individual
+            # base jitter) are never exposed as model features, so the scoring
+            # function below is NOT identical to what the model can learn.
+            # Duty-hour variance, promotion stagnation, and transfer count are
+            # observable but carry no direct latent signal (transfers matter
+            # only via the operational reason rule + family separation).
+            # Weights are sized so the review label (latent >= 0.65) stays a
+            # minority class, as elevated welfare concern should be.
+            life_event_shock = 0.18 if random.random() < 0.05 else 0.0
+            resilience_trait = float(np.random.normal(0, 0.07))
+            base_jitter = float(np.random.normal(0, ctx_config["base_stress_std"] * 0.6))
             latent_stress = (
                 ctx_config["base_stress_mean"]
-                + (consecutive_days / 180.0) * 0.25
-                + (leave_denial_ratio * 0.30)
-                + post_leave_hazard
-                + ((1.0 - rest_ratio_28d) * 0.20)
-                + (0.10 if not family_colocated else -0.08)
-                + (night_duty_hours / 160.0) * 0.15
-                + np.random.normal(0, 0.08)
+                + base_jitter
+                + (consecutive_days / 180.0) * 0.18
+                + (leave_denial_ratio * 0.22)
+                + post_leave_hazard * 0.7
+                + ((1.0 - rest_ratio_28d) * 0.14)
+                + (0.06 if not family_colocated else -0.06)
+                + (night_duty_hours / 160.0) * 0.10
+                + life_event_shock
+                - resilience_trait
+                + np.random.normal(0, 0.09)
             )
             latent_stress = float(np.clip(latent_stress, 0.02, 0.98))
 
@@ -157,7 +211,7 @@ class SyntheticCohortManager:
         self._calculate_cohort_baselines()
         return self.personnel_df
 
-    def get_personnel_by_pseudonym(self, pseudonym_id: str) -> dict:
+    def get_personnel_by_pseudonym(self, pseudonym_id: str) -> dict | None:
         if pseudonym_id in self.pseudonym_index:
             return self.pseudonym_index[pseudonym_id]
         if not self.personnel_df.empty:
@@ -166,8 +220,10 @@ class SyntheticCohortManager:
                 rec = match.iloc[0].to_dict()
                 self.pseudonym_index[pseudonym_id] = rec
                 return rec
-            return self.personnel_df.iloc[0].to_dict()
-        return {}
+            # Unknown IDs return None so callers emit 404. Never fall back to
+            # another person's record.
+            return None
+        return None
 
     def _calculate_cohort_baselines(self):
         for ctx in self.personnel_df["force_type"].unique():

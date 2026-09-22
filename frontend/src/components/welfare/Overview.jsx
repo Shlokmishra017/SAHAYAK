@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ClipboardCheck,
   Plus,
   ArrowUpRight,
   ChevronRight,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  BellRing
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageIntro, Stat } from '../layout/PageIntro';
+import { DemoModeBanner } from '../common/DemoModeBanner';
 import {
   Avatar,
   Risk,
@@ -21,17 +23,38 @@ import {
   formatTimeAgo
 } from './caseHelpers';
 import { InterventionModal } from '../interventions/InterventionModal';
+import { fetchAlerts, acknowledgeAlert } from '../../services/api';
 import { useAppState } from '../../context/AppStateContext';
 
 export function Overview() {
-  const { welfareCases, currentUser } = useAppState();
+  const { welfareCases, currentUser, showToast, backendError } = useAppState();
   const navigate = useNavigate();
 
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
   const [selectedCaseForModal, setSelectedCaseForModal] = useState(null);
+  const [alerts, setAlerts] = useState([]);
 
-  const openCasesCount = (welfareCases || []).filter((c) => c.status === 'open').length || welfareCases.length || 8;
-  const followUpCount = (welfareCases || []).filter((c) => c.status === 'in_review' || c.status === 'intervention_active').length || 4;
+  useEffect(() => {
+    fetchAlerts()
+      .then((data) => setAlerts(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  const openCasesCount = (welfareCases || []).filter((c) => c.status === 'open').length;
+  const followUpCount = (welfareCases || []).filter(
+    (c) => c.status === 'in_review' || c.status === 'intervention_active' || c.status === 'follow_up_due'
+  ).length;
+  const pendingAlerts = alerts.filter((a) => a.status === 'recorded' || a.status === 'delivered');
+
+  const handleAckAlert = async (alertId) => {
+    try {
+      await acknowledgeAlert(alertId);
+      setAlerts((prev) => prev.map((a) => (a.alert_id === alertId ? { ...a, status: 'acknowledged' } : a)));
+      showToast('Alert acknowledged.', 'success');
+    } catch (err) {
+      showToast(err?.message || 'Failed to acknowledge alert.', 'error');
+    }
+  };
 
   const todayStr = new Intl.DateTimeFormat('en-GB', {
     weekday: 'long',
@@ -56,6 +79,31 @@ export function Overview() {
 
   return (
     <>
+      <DemoModeBanner />
+      {pendingAlerts.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-[#f7d6cd] bg-[#fae6e0] p-4">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold text-[#a55342]">
+            <BellRing size={15} />
+            <span>{pendingAlerts.length} unacknowledged welfare alert{pendingAlerts.length > 1 ? 's' : ''}</span>
+          </div>
+          <div className="space-y-1.5">
+            {pendingAlerts.slice(0, 3).map((alert) => (
+              <div key={alert.alert_id} className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-2 text-[11px]">
+                <span className="text-[#843627]">
+                  <span className="font-bold uppercase">{alert.tier}</span> — {alert.case_id} · {alert.reason?.split(';')[0]}
+                  <span className="ml-2 text-[#a55342]/70">({alert.channel === 'email' ? 'emailed' : 'internal record'})</span>
+                </span>
+                <button
+                  onClick={() => handleAckAlert(alert.alert_id)}
+                  className="shrink-0 rounded-lg border border-[#f7d6cd] bg-white px-2.5 py-1 text-[10px] font-bold text-[#a55342] hover:bg-white"
+                >
+                  Acknowledge
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <PageIntro
         eyebrow={todayStr}
         title={`Good day, ${currentUser?.name ? currentUser.name.split(' ')[0] : 'Officer'}.`}
@@ -88,19 +136,19 @@ export function Overview() {
         <Stat
           label="Follow-ups due"
           value={String(followUpCount).padStart(2, '0')}
-          detail="In-review & scheduled"
+          detail="In review, active & due"
           accent="text-[#397c68]"
         />
         <Stat
-          label="Avg. response"
-          value="18m"
-          detail="↓ 12% this month"
-          accent="text-[#397c68]"
+          label="Pending alerts"
+          value={String(pendingAlerts.length).padStart(2, '0')}
+          detail="Unacknowledged signals"
+          accent="text-[#bc684f]"
         />
         <Stat
-          label="Team check-in"
-          value="86%"
-          detail="Within expected range"
+          label="Total in queue"
+          value={String((welfareCases || []).length).padStart(2, '0')}
+          detail="All tracked cases"
           accent="text-[#397c68]"
         />
       </div>

@@ -22,7 +22,15 @@ def enforce_k_anonymity_cohort(
                 "critical": None
             },
             "avg_fatigue_index": None,
-            "rest_ratio": None
+            "rest_ratio": None,
+            # Privacy-safe passthrough: unit identity and methodology notes
+            # contain no individual data.
+            "parent_unit": metrics.get("parent_unit"),
+            "force_type": metrics.get("force_type"),
+            "workload_score": None,
+            "rotation_recommendation": "Cohort Redacted (k-anonymity guarantee)",
+            "methodology": metrics.get("methodology"),
+            "demonstration_fixture": metrics.get("demonstration_fixture", False),
         }
     
     return {

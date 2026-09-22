@@ -18,6 +18,8 @@ import { AuditLedgerView } from './components/audit/AuditLedgerView';
 
 import { PersonnelView } from './components/personnel/PersonnelView';
 
+import { HrmsImportView } from './components/hrms/HrmsImportView';
+
 import { GuidanceView } from './components/governance/GuidanceView';
 
 function RequireAuth({ children }) {
@@ -70,6 +72,7 @@ export default function App() {
               <Route path="welfare/cases" element={<CasesView />} />
               <Route path="welfare/cases/:caseId" element={<CaseDetailView />} />
               <Route path="welfare/interventions" element={<InterventionsView />} />
+              <Route path="welfare/hrms" element={<HrmsImportView />} />
 
               <Route path="command" element={<TeamPulseView />} />
 

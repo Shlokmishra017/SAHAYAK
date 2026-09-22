@@ -10,6 +10,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { PageIntro } from '../layout/PageIntro';
+import { BackendErrorState, DemoModeBanner } from '../common/DemoModeBanner';
 import {
   fetchAuditLedger,
   verifyAuditLedger,
@@ -22,6 +23,30 @@ export function AuditLedgerView() {
   const { showToast } = useAppState();
 
   const [blocks, setBlocks] = useState([]);
+  const [loadError, setLoadError] = useState(null);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const CATEGORIES = [
+    ['all', 'All events'],
+    ['break_glass', 'Break-glass'],
+    ['access', 'Case access'],
+    ['care', 'Interventions & outcomes'],
+    ['intake', 'Intake & imports'],
+    ['system', 'System & integrity']
+  ];
+
+  const categorize = (action = '') => {
+    if (action.includes('BREAK_GLASS')) return 'break_glass';
+    if (action.includes('CASE_DETAIL') || action.includes('CASE_LIST')) return 'access';
+    if (action.includes('INTERVENTION') || action.includes('OUTCOME') || action.includes('STATUS_CHANGED') || action.includes('LABEL')) return 'care';
+    if (action.includes('ESCALATION') || action.includes('SELF_REFERRAL') || action.includes('HRMS') || action.includes('ALERT')) return 'intake';
+    return 'system';
+  };
+
+  const visibleBlocks = categoryFilter === 'all'
+    ? blocks
+    : blocks.filter((b) => categorize(b.action) === categoryFilter);
+  const breakGlassCount = blocks.filter((b) => categorize(b.action) === 'break_glass').length;
   const [verificationResult, setVerificationResult] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isTampering, setIsTampering] = useState(false);
@@ -31,6 +56,7 @@ export function AuditLedgerView() {
 
   const loadData = async () => {
     try {
+      setLoadError(null);
       const [logsRes, verifyRes] = await Promise.all([
         fetchAuditLedger(50),
         verifyAuditLedger()
@@ -39,6 +65,7 @@ export function AuditLedgerView() {
       setVerificationResult(verifyRes || null);
     } catch (err) {
       console.error('Failed to load audit data:', err);
+      setLoadError(err?.message || 'Audit data could not be loaded.');
     }
   };
 
@@ -101,6 +128,12 @@ export function AuditLedgerView() {
 
   return (
     <>
+      <DemoModeBanner />
+      {loadError && (
+        <div className="mb-4">
+          <BackendErrorState message={loadError} onRetry={loadData} />
+        </div>
+      )}
       <PageIntro
         eyebrow="Immutable Cryptographic Trust Layer"
         title="Audit ledger"
@@ -201,12 +234,34 @@ export function AuditLedgerView() {
             </p>
           </div>
           <span className="text-[11px] font-bold text-[#27705c]">
-            {blocks.length} blocks
+            {visibleBlocks.length} of {blocks.length} blocks
+            {breakGlassCount > 0 ? ` · ${breakGlassCount} break-glass` : ''}
           </span>
         </div>
 
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {CATEGORIES.map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => setCategoryFilter(val)}
+              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                categoryFilter === val
+                  ? 'bg-[#174c42] text-white'
+                  : 'border border-[#dce6e0] bg-white text-[#557068] hover:bg-[#f8fbf9]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-3">
-          {blocks.map((block) => {
+          {visibleBlocks.length === 0 ? (
+            <div className="py-6 text-center text-xs text-[#8a9a94]">
+              No events in this category yet.
+            </div>
+          ) : (
+          visibleBlocks.map((block) => {
             const isExpanded = expandedSeq === block.seq;
 
             return (
@@ -284,7 +339,8 @@ export function AuditLedgerView() {
                 )}
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </div>
     </>

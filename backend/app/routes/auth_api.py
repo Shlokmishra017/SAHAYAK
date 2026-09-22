@@ -1,5 +1,6 @@
-"""Service-credential login with automatic role resolution."""
+"""Service-credential login with explicit seeded demo identities."""
 
+import os
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Dict
@@ -10,6 +11,11 @@ from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication & Identity"])
 limiter = Limiter(key_func=get_remote_address)
+
+# Seeded demo credential for the four documented demo identities below.
+# Override in deployment via DEMO_ACCOUNT_PASSWORD. Unknown service IDs are
+# always rejected (no auto-provisioning).
+DEMO_ACCOUNT_PASSWORD = os.getenv("DEMO_ACCOUNT_PASSWORD", "ServicePass@2026")  # ci-allow-seeded-demo
 
 class LoginRequest(BaseModel):
     full_name: str
@@ -79,7 +85,7 @@ ACCOUNTS_DB: Dict[str, Dict] = {
 }
 
 for account in ACCOUNTS_DB.values():
-    account["password_hash"] = hash_password("ServicePass@2026")
+    account["password_hash"] = hash_password(DEMO_ACCOUNT_PASSWORD)
 
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("10/minute")
@@ -87,39 +93,11 @@ def authenticate_user(request: Request, req: LoginRequest):
     svc_id = req.service_id.strip().upper()
     account = ACCOUNTS_DB.get(svc_id)
 
-    if not account and not settings.demo_mode:
-        raise HTTPException(status_code=401, detail="Invalid service credentials")
-
+    # Explicit seeded demo identities only. Unknown service IDs are rejected
+    # in both demo and production mode so arbitrary prefixes can never
+    # bypass meaningful authentication.
     if not account:
-        if svc_id.startswith("WO") or "WELFARE" in svc_id:
-            role = "Z1_WELFARE_OFFICER"
-            level = "Level 1 — Unit Welfare Officer Triage & Intervention Core"
-            rank = "Welfare Officer"
-        elif svc_id.startswith("CMD") or "COM" in svc_id:
-            role = "Z1_COMMANDER"
-            level = "Level 2 — Battalion / Sector Commander Macro Strategy"
-            rank = "Commander"
-        elif svc_id.startswith("AUD") or "INSPECT" in svc_id:
-            role = "AUDITOR"
-            level = "Level 3 — Technical Auditor & Cryptographic Trust Verifier"
-            rank = "Auditor"
-        else:
-            role = "Z0_PERSONNEL"
-            level = "Level 0 — Force Personnel (Jawan) Confidential Wellness Suite"
-            rank = "Force Personnel"
-
-        account = {
-            "service_id": svc_id,
-            "full_name": req.full_name or "Authenticated Officer",
-            "rank": rank,
-            "unit": "CAPF Operational Unit",
-            "role": role,
-            "level_label": level,
-            "clearance": "Standard RBAC",
-            "avatar": (req.full_name[:2] if len(req.full_name) >= 2 else "SO").upper()
-        }
-
-        account["password_hash"] = hash_password(req.password)
+        raise HTTPException(status_code=401, detail="Invalid service credentials")
 
     if not verify_password(req.password, account["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid service credentials")

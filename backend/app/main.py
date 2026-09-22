@@ -15,6 +15,8 @@ from app.routes.command_api import router as command_router
 from app.routes.identity_api import router as identity_router
 from app.routes.audit_api import router as audit_router
 from app.routes.auth_api import router as auth_router
+from app.routes.hrms_api import router as hrms_router
+from app.routes.alerts_api import router as alerts_router
 from app.core.audit_chain import audit_ledger
 from app.core.config import settings
 from app.core.database import CaseRecord, SessionLocal, init_db
@@ -35,8 +37,17 @@ async def lifespan(app: FastAPI):
     print(f"[+] Generated {len(df)} personnel across 4 operational contexts.")
 
     print("[*] Training HR Operational Risk Model & Calibration Baselines...")
-    hr_risk_engine.train_model(df)
-    print("[+] Model trained & robust z-score calibration active.")
+    split_meta = hr_risk_engine.train_with_splits(df, seed=42)
+    test_report = hr_risk_engine.evaluate(df)
+    print(
+        f"[+] Model {split_meta['model_version']} trained on "
+        f"{split_meta['train']['n']} train / {split_meta['validation']['n']} val / "
+        f"{split_meta['test']['n']} test (seed 42). "
+        f"Held-out test @ band>=3: P={test_report['precision']:.3f} "
+        f"R={test_report['recall']:.3f} F1={test_report['f1']:.3f} "
+        f"(FP={test_report['false_positives']}, FN={test_report['false_negatives']}). "
+        "Synthetic-data metrics only; see docs/ModelCard.md."
+    )
 
     high_stress = df[df["latent_stress_index"] > 0.65]
     if len(high_stress) == 0:
@@ -110,6 +121,8 @@ app.include_router(welfare_router, dependencies=[Depends(get_current_user)])
 app.include_router(command_router, dependencies=[Depends(get_current_user)])
 app.include_router(identity_router, dependencies=[Depends(get_current_user)])
 app.include_router(audit_router, dependencies=[Depends(get_current_user)])
+app.include_router(hrms_router, dependencies=[Depends(get_current_user)])
+app.include_router(alerts_router, dependencies=[Depends(get_current_user)])
 
 @app.get("/")
 def root():
@@ -126,4 +139,23 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "service": "sahayak-api"}
+
+
+@app.get("/ready")
+def readiness_check():
+    """Readiness verifies required dependencies (database connectivity)."""
+    try:
+        from sqlalchemy import text as sql_text
+        from app.core.database import engine
+
+        with engine.connect() as conn:
+            conn.execute(sql_text("SELECT 1"))
+        return {"ready": True, "database": "reachable"}
+    except Exception as exc:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=503,
+            content={"ready": False, "database": "unreachable", "detail": str(exc)[:200]},
+        )

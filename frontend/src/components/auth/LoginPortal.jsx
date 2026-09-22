@@ -8,16 +8,16 @@ export function LoginPortal() {
   const { loginWithResolvedUser } = useAppState();
   const navigate = useNavigate();
 
-  const [fullName, setFullName] = useState('Capt. Meera Nair');
-  const [serviceId, setServiceId] = useState('WO-7742');
-  const [password, setPassword] = useState('ServicePass@2026');
+  const [fullName, setFullName] = useState('');
+  const [serviceId, setServiceId] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
   const handleQuickFill = (persona) => {
     setFullName(persona.name);
     setServiceId(persona.serviceNo);
-    setPassword('ServicePass@2026');
+    setPassword('');
     setErrorMessage(null);
   };
 

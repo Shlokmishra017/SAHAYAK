@@ -1,0 +1,104 @@
+# Sahayak lightweight CI: install, tests, frontend build, backend checks,
+# security scan. No elaborate CD — deployment is via docker compose.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: pip install -r requirements.txt
+      - name: Backend import check
+        run: python -c "import app.main; print('import ok')"
+        env:
+          JWT_SECRET: ci-only-test-secret-32-chars-minimum
+          WELFARE_OFFICER_ID: WO_7742
+          WELFARE_OFFICER_PIN: "0000"
+          MEDICAL_OFFICER_ID: MO_3109
+          MEDICAL_OFFICER_PIN: "0000"
+          ADJUTANT_ID: ADJ_102
+          ADJUTANT_PIN: "0000"
+      - name: Backend tests
+        run: python -m pytest tests/test_backend.py tests/test_phase1.py tests/test_phase2.py tests/test_phase3.py tests/test_phase5_backend.py -q
+        env:
+          JWT_SECRET: ci-only-test-secret-32-chars-minimum
+          WELFARE_OFFICER_ID: WO_7742
+          WELFARE_OFFICER_PIN: "9481"
+          MEDICAL_OFFICER_ID: MO_3109
+          MEDICAL_OFFICER_PIN: "6205"
+          ADJUTANT_ID: ADJ_102
+          ADJUTANT_PIN: "8821"
+      - name: Failure drills
+        run: python tests/failure_drill.py
+        env:
+          JWT_SECRET: ci-only-test-secret-32-chars-minimum
+          WELFARE_OFFICER_ID: WO_7742
+          WELFARE_OFFICER_PIN: "9481"
+          MEDICAL_OFFICER_ID: MO_3109
+          MEDICAL_OFFICER_PIN: "6205"
+          ADJUTANT_ID: ADJ_102
+          ADJUTANT_PIN: "8821"
+      - name: Alembic baseline check
+        run: |
+          export DATABASE_URL="sqlite:///./ci_check.db"
+          alembic upgrade head
+          alembic check
+          rm -f ci_check.db
+        env:
+          JWT_SECRET: ci-only-test-secret-32-chars-minimum
+      - name: Model eval smoke (synthetic, small n)
+        run: python eval_model.py --seed 42 --n 300
+        env:
+          JWT_SECRET: ci-only-test-secret-32-chars-minimum
+          WELFARE_OFFICER_ID: WO_7742
+          WELFARE_OFFICER_PIN: "9481"
+          MEDICAL_OFFICER_ID: MO_3109
+          MEDICAL_OFFICER_PIN: "6205"
+          ADJUTANT_ID: ADJ_102
+          ADJUTANT_PIN: "8821"
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend deps
+        run: npm ci
+      - name: Frontend tests
+        run: npm test -- --run
+      - name: Frontend build
+        run: npm run build
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No committed secrets, DBs, or PINs
+        run: |
+          set -e
+          echo "--- tracked env/db files (must be empty) ---"
+          TRACKED_BAD=$(git ls-files | grep -E '(\.db$|\.db-journal$|\.db-wal$|\.db-shm$|(^|/)\.env$)' || true)
+          if [ -n "$TRACKED_BAD" ]; then echo "$TRACKED_BAD"; echo "FAIL: sensitive files tracked"; exit 1; fi
+          echo "--- hardcoded credential scan (must be empty) ---"
+          HITS=$(grep -rEn 'ServicePass@2026|demo_pin|WELFARE_OFFICER_PIN=9481|MEDICAL_OFFICER_PIN=6205|ADJUTANT_PIN=8821|custodian_1_pin ===' \
+            frontend/src backend/app backend/eval_model.py | grep -v 'ci-allow-seeded-demo' || true)
+          if [ -n "$HITS" ]; then echo "$HITS"; echo "FAIL: hardcoded credentials"; exit 1; fi
+          echo "security scan clean"

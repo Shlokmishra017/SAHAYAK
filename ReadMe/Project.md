@@ -1,5 +1,15 @@
 # Sahayak AI - Personnel Welfare Intelligence Platform
 
+> **Prototype status (Phase 7):** deployable prototype, not production.
+> Labels used in this doc: **[Implemented]** (in repo + exercised),
+> **[Demo]** (simulated data, clearly marked in-app), **[Deployment concern]**
+> (required from the hosting authority, not in repo), **[Future]** (not built).
+> Anything else unmarked here that is not in `docs/` should be treated as
+> **[Future]**. Authoritative per-area docs: `docs/ModelCard.md`,
+> `docs/ThreatModel.md`, `docs/Limitations.md`, `docs/Architecture.md`,
+> `docs/Deployment.md`, `docs/DataRetention.md`, `docs/FailureDrills.md`,
+> `docs/HrmsIngestion.md`, `docs/DemoDataset.md`.
+
 ## Project Overview
 
 Sahayak AI is a privacy-preserving personnel welfare platform designed for military/paramilitary organizations. It combines on-device wellness signals with server-side operational risk bands while exposing only the minimum information needed for welfare intervention, command-level planning, and audit review.
@@ -26,6 +36,8 @@ The platform implements a "Zero Trust" approach to personnel data where:
     - `device_api.py`: Device-to-server communication (escalations, check-ins)
     - `welfare_api.py`: Welfare officer case management
     - `command_api.py`: Commander-level analytics and heatmaps
+    - `hrms_api.py`: Validated HRMS CSV ingestion adapter (template, sample, import with row report)
+    - `alerts_api.py`: Critical-signal alert events + acknowledgement (SMTP delivery when configured)
     - `identity_api.py`: Identity management and break-glass procedures
     - `audit_api.py`: Audit trail inspection and verification
   - `app/core/`: Core business logic components
@@ -37,9 +49,10 @@ The platform implements a "Zero Trust" approach to personnel data where:
     - `reason_codes.py`: Whitelisted reason codes for welfare signaling
     - `security.py`: Security utilities and helpers
   - `app/ml/`: Machine learning components
-    - `cohort_analyzer.py`: Personnel cohort analysis and clustering
-    - `hr_risk_model.py`: Hazard band calculation and risk stratification
-    - `synthetic_generator.py`: Demo data generation for testing/showcases
+    - `cohesion_analyzer.py`: Unit climate aggregates (documented demo composites)
+    - `hr_risk_model.py`: Gradient-boosted risk score + unit-relative calibration + rule-based reason codes + train/val/test + evaluation
+    - `trajectory.py`: Risk trajectory from recorded case history (no fabricated history)
+    - `synthetic_generator.py`: Documented synthetic cohort generation for demos/evaluation (not real-world data)
   - `app/models/`: Database schema definitions using SQLAlchemy ORM
     - `schemas.py`: Table definitions for cases, interventions, audit blocks, etc.
 
@@ -60,8 +73,12 @@ The platform implements a "Zero Trust" approach to personnel data where:
     - `/layout/`: Application shell and navigation components
   - `src/context/`: React context providers for global state management
   - `src/services/`: API service functions for backend communication
-    - `api.js`: REST API client with authentication handling
-    - `localModel.js`: On-device ML model inference utilities
+    - `api.js`: REST API client — normal mode throws visibly on backend failure; demo mode (`VITE_DEMO_MODE=true`) serves explicitly marked simulated data
+    - `localModel.js`: On-device wellness scoring — multilingual keyword matching + weighted scoring + moving average (rules + statistics, not a neural model)
+    - `outbox.js`: Persistent IndexedDB offline outbox (bounded retries, manual sync)
+    - `wellnessProviders.js`: Self-reported provider (implemented) vs wearable provider (future stub that refuses to fabricate data)
+    - `strings.js`: English + Hindi personnel strings (vernacular-ready architecture)
+  - `public/manifest.webmanifest` + `sw.js`: Installable offline-capable personnel PWA (not a native app)
   - `src/assets/`: Static assets (icons, images, etc.)
 
 ## Roles and Permissions Matrix
@@ -69,7 +86,7 @@ The platform implements a "Zero Trust" approach to personnel data where:
 | Role | Permitted Capabilities | Data Access Level |
 |------|------------------------|-------------------|
 | **Device Personnel** | Device attestation, own risk-band retrieval, escalation, self-referral, own erasure request | Own pseudonymized data only |
-| **Welfare Officer** | Case queue, case detail, intervention logging, case feedback | Flagged cases requiring intervention |
+| **Welfare Officer** | Case queue, case detail, intervention logging + outcomes, case feedback, alert acknowledgement, HRMS CSV import | Flagged cases requiring intervention |
 | **Commander** | k-anonymous heatmaps, cohesion aggregates, cohort statistics | Aggregated, k-anonymous unit/cohort data |
 | **Auditor** | Audit ledger inspection and integrity verification | Complete audit trail (hashed identifiers only) |
 | **System** | Model bootstrap, controlled demo seeding, internal audit events | System-level access for maintenance |
@@ -87,7 +104,7 @@ The platform implements a "Zero Trust" approach to personnel data where:
 ### 2. Cryptographic Audit Ledger
 - **Immutable Hash Chain**: Each block contains SHA-256 hash of previous block, creating tamper-evident sequence
 - **Append-Only Architecture**: New entries can only be added; modification breaks chain verification
-- **Automatic Integrity Verification**: Chain validation occurs on startup and periodic intervals
+- **Automatic Integrity Verification**: On-demand via `/verify`, plus tamper-simulation/restore demonstration for auditors **[Implemented]** (no background periodic verifier)
 - **Tamper Evidence**: Any alteration to historical data is immediately detectable through hash mismatch
 - **Persistent Storage**: Audit blocks stored in database with indexes for efficient querying
 
@@ -106,13 +123,13 @@ The platform implements a "Zero Trust" approach to personnel data where:
 - **Idempotency Support**: Client-generated IDs prevent duplicate processing during retries
 
 ### 5. Welfare Intervention Workflow
-1. **Device Submission**: Personnel submit encrypted wellness signals from personal device
-2. **Edge Processing**: Device analyzes signals locally, generates reason codes if thresholds crossed
-3. **Secure Transmission**: Only reason codes and pseudonyms sent over HTTPS to server
+1. **Device Submission**: Personnel submit wellness signals from personal device (installable offline-capable PWA **[Implemented]**; no native mobile app **[Future]**)
+2. **Edge Processing**: Device analyzes signals locally with keyword/weighted scoring, generates reason codes if thresholds crossed
+3. **Secure Transmission**: Only reason codes and pseudonyms sent to server (TLS is a **[Deployment concern]** — reverse-proxy termination)
 4. **Case Creation**: Server validates reason codes, creates welfare case if valid
 5. **Welfare Triage**: Officers review prioritized case queue based on risk tiers (critical/elevated/emerging)
-6. **Intervention Logging**: Actions recorded with sanitized notes (PII removed)
-7. **Feedback Loop**: Outcomes and interventions fed back to improve risk models
+6. **Intervention Logging**: Actions recorded with sanitized notes (PII removed), follow-up dates, and recorded outcomes
+7. **Feedback Loop**: Officer labels and outcomes are captured for evaluation and future retraining; they do **not** update the production model **[Implemented]** (offline retraining pipeline is **[Future]**)
 8. **Audit Trail**: Every access, view, and action cryptographically logged with hashed actor ID
 
 ### 6. Command-Level Analytics
@@ -123,29 +140,28 @@ The platform implements a "Zero Trust" approach to personnel data where:
 - **Heatmap Visualization**: Geographic distribution of welfare risks across deployed units
 
 ### 7. Security & Observability
-- **Rate Limiting**: Configurable limits per IP and per authenticated subject to prevent abuse
-- **Input Validation**: Comprehensive validation at API boundaries using Pydantic models
-- **Centralized Error Handling**: Unified exception handling preventing information leakage
-- **Correlation IDs**: Unique request identifiers for end-to-end tracing and debugging
-- **Health Checks**: Distinguishing process health from database readiness for orchestration
-- **Secure Headers**: HTTP security headers (CSP, HSTS, etc.) configured appropriately
+- **Rate Limiting**: Per-IP limits via slowapi on sensitive routes **[Implemented]** (per-subject limits are **[Future]**)
+- **Input Validation**: Pydantic validation at API boundaries **[Implemented]**
+- **Error Handling**: Standard JSON error shapes; backend failures surface visibly in UI **[Implemented]** (no centralized exception-middleware — partial)
+- **Health Checks**: `/health` (process) vs `/ready` (database) **[Implemented]**
+- **Secure Headers / correlation IDs**: **[Deployment concern]** — terminate at reverse proxy / log shipper, not in app
 
 ## Data Models
 
 ### Core Entities
-1. **Account** (`app/models/schemas.py:AccountRecord`)
-   - Authentication subjects with encrypted credentials
-   - Fields: subject (username), role, password hash, status, timestamps
-   - Relationships: One-to-many with cases/interventions performed
+1. **Demo identities** (`app/routes/auth_api.py:ACCOUNTS_DB`)
+   - Four documented seeded identities (personnel / welfare / commander / auditor), PBKDF2-hashed passwords, unknown IDs rejected
+   - No auto-provisioning; demo password overridable via `DEMO_ACCOUNT_PASSWORD`
 
 2. **Case** (`app/models/schemas.py:CaseRecord`)
    - Welfare cases requiring officer attention
    - Fields: case_id (PK), pseudonym_id (FK), tier, origin, reason_codes[], timestamps, status, unit_context, h_band, has_acute_marker
    - Relationships: One-to-many with interventions
 
-3. **Intervention** (`app/models/schemas.py:InterventionRecord`)
+3. **Intervention** (`app/core/database.py:InterventionRecord`)
    - Actions taken on welfare cases
-   - Fields: intervention_id (PK), case_id (FK), kind, performed_by_role, officer_id, performed_at, notes_sanitized
+   - Fields: intervention_id (PK), case_id, kind, performed_by_role, officer_id, performed_at, notes_sanitized, target_concern, follow_up_date, outcome, outcome_score
+   - Case state machine: open → in_review → intervention_active → follow_up_due → closed (+ escalated/declined); terminal states reject writes
    - Relationships: Many-to-one with case
 
 4. **AuditBlock** (`app/models/schemas.py:AuditBlockRecord`)
@@ -158,14 +174,14 @@ The platform implements a "Zero Trust" approach to personnel data where:
    - Fields: key (PK - client-generated ID), case_id (FK), created_at
    - Purpose: Prevents duplicate case creation during network retries
 
-6. **Cohort** (Derived from query results)
-   - Aggregated personnel statistics for command views
-   - Fields: total_personnel, unit_name, force_type_distribution{}, timestamps
-   - Computed: On-demand from personell data with k-anonymity applied
+6. **Cohort aggregates** (computed on demand with small-cohort suppression)
+   - Unit means of member observations; company cells apportion unit totals for demonstration; n<20 redacted
+   - Plus: `BreakGlassRequestRecord` (persistent dual-custody registry), `HrmsImportRecord` (import runs), `AlertRecord` (critical-signal alerts)
 
 ## Implementation Status & Technical Debt
 
-Based on code review findings (REVIEW_FINDINGS.md), the platform implements core concepts but requires production-readiness improvements:
+> Historical review snapshot (references REVIEW_FINDINGS.md and 2024-era file names such as `CaseList.jsx`/`LabelFeedbackLoop.jsx`, since renamed/removed).
+> Current status: Phases 1–6 implemented — JWT auth + RBAC + expiry, persistent hash-chained audit, persistent break-glass registry, validated HRMS ingestion, intervention outcome loop, measured synthetic-data model evaluation (`docs/ModelCard.md`), PWA + IndexedDB outbox, Postgres + Alembic + Docker + CI. What remains is in `docs/Limitations.md`.
 
 ### Implemented Core Features
 - ✅ Basic API structure with FastAPI and async route handlers
@@ -239,13 +255,13 @@ Based on code review findings (REVIEW_FINDINGS.md), the platform implements core
 - **Hot Reload**: Enabled for both backend (uvicorn) and frontend (vite)
 
 ### Production Environment
-- **Database**: PostgreSQL with connection pooling and replication
-- **Mode**: `DEMO_MODE=false` - no synthetic data generation
-- **CORS**: Strictly configured frontend origins only
-- **Logging**: Structured JSON logging to centralized system
-- **Scaling**: Horizontal pod autoscaling based on CPU/memory
-- **Secrets**: Environment variables managed via secret manager (Vault/AWS Secrets Manager)
-- **TLS**: Mutual TLS for service-to-service communication where applicable
+- **Database**: PostgreSQL via docker compose with Alembic migrations **[Implemented]** (replication/backups are **[Deployment concern]**)
+- **Mode**: `DEMO_MODE=false` - no synthetic data generation **[Implemented]**
+- **CORS**: Strictly configured frontend origins only **[Implemented]**
+- **Logging**: Console output **[Implemented]** (structured JSON shipping to ELK/Datadog is **[Deployment concern]**)
+- **Scaling**: Single API + Postgres in compose **[Implemented]** (autoscaling/Kubernetes is **[Future]**)
+- **Secrets**: Environment variables; committed `.env`/PINs/DBs rejected by CI scan **[Implemented]** (Vault/secret manager is **[Deployment concern]**)
+- **TLS**: **[Deployment concern]** — terminate at the deployment reverse proxy (no in-app TLS, no mTLS)
 
 ### Demo/Staging Environment
 - **Database**: PostgreSQL with isolated schema
@@ -330,28 +346,27 @@ Based on code review findings (REVIEW_FINDINGS.md), the platform implements core
 ## Security and Privacy Guarantees
 
 ### Technical Guarantees
-1. **Forward Secrecy**: Session keys ephemeral; compromise of long-term keys doesn't decrypt past sessions
-2. **Data Minimization**: Server stores only what's strictly necessary for welfare function
-3. **Purpose Limitation**: Data used only for authorized welfare, command planning, and audit functions
-4. **Storage Limitation**: Data retention policies applied; erasure requests honored per policy
-5. **Integrity Protection**: Cryptographic hash chains detect any unauthorized modification
-6. **Confidentiality**: Data encrypted in transit (TLS 1.3) and at rest (database encryption)
-7. **Anonymity**: k-anonymity (n≥20) protects against re-identification in aggregate releases
-8. **Pseudonymity**: Identities replaced with cryptographic pseudonyms in most contexts
+1. **Data Minimization**: Server stores only what's strictly necessary for welfare function **[Implemented]**
+2. **Purpose Limitation**: Data used only for authorized welfare, command planning, and audit functions (policy + RBAC **[Implemented]**; organizational enforcement is a **[Deployment concern]**)
+3. **Storage Limitation**: Data retention policy documented in `docs/DataRetention.md`; erasure requests honored per policy **[Implemented]**
+4. **Integrity Protection**: Cryptographic hash chains detect any unauthorized modification **[Implemented]**
+5. **Anonymity**: Small-cohort suppression (n<20) protects against re-identification in aggregate releases **[Implemented]** (differential privacy is **[Future]**)
+6. **Pseudonymity**: Identities replaced with pseudonyms; break-glass disclosure is dual-custody, minimum-necessary, audited **[Implemented]**
+7. **Transport/at-rest encryption**: **[Deployment concern]** — TLS terminates at the deployment reverse proxy; no database at-rest encryption in the prototype
 
 ### Operational Guarantees
-1. **Access Logging**: All access attempts logged (success and failure) with correlation IDs
-2. **Privilege Separation**: Different system components run with least privilege
-3. **Vulnerability Management**: Regular dependency scanning and patch management
-4. **Incident Response**: Procedures for suspected breaches including audit trail preservation
-5. **Compliance**: Designed to support compliance with data protection regulations (GDPR-ish principles)
+1. **Access Logging**: Sensitive access logged to the hash-chained ledger **[Implemented]** (no separate centralized log shipper)
+2. **Privilege Separation**: Role-based access on every protected route **[Implemented]**
+3. **Vulnerability Management**: Pinned dependencies (`requirements.lock`, `package-lock.json`) + CI security scan **[Implemented]** (no scheduled SOC process — **[Deployment concern]**)
+4. **Incident Response**: Audit tamper drills documented in `docs/FailureDrills.md` **[Implemented]** (organizational runbooks are a **[Deployment concern]**)
+5. **Compliance**: Designed around data-minimization principles; statutory compliance sign-off is a **[Deployment concern]** (see `docs/Limitations.md`)
 
 ## Extensibility Points
 
 ### Backend Extension Points
-1. **Authentication Providers**: Pluggable identity provider interface in auth.py
+1. **Authentication Providers**: JWT issuance in auth.py; seeded demo identities for prototype (SSO/SAML is **[Future]**)
 2. **Reason Code Expansion**: Add new codes to reason_codes.py whitelist
-3. **ML Model Updates**: Replace model files in ml/ directory with retrained versions
+3. **ML Model Updates**: **[Future]** offline retraining pipeline — labels captured now, explicit approval required before any promotion (see `docs/ModelCard.md`)
 4. **New Endpoints**: Add routers to main.py and implement in routes/ directory
 5. **Audit Actions**: Extend audit_chain.py with new action types as needed
 6. **Database Schema**: Add new models to schemas.py and run migrations
@@ -362,42 +377,19 @@ Based on code review findings (REVIEW_FINDINGS.md), the platform implements core
 3. **State Management**: Extend AppStateContext with new state slices
 4. **UI Components**: Reusable components in src/components/common/
 5. **Styling Themes**: CSS variables in src/index.css for easy theming
-6. **Internationalization**: i18n framework ready for language packs
+6. **Internationalization**: Personnel experience ships English + Hindi via `src/services/strings.js` dictionaries **[Implemented]** (additional languages plug into the same architecture)
 
-## Monitoring and Observability
+## Monitoring and Observability (prototype scope)
 
-### Metrics Collection
-- **Request Rates**: HTTP requests per endpoint, method, and status code
-- **Latency**: Response time percentiles (p50, p95, p99)
-- **Error Rates**: Failed requests by exception type and endpoint
-- **System Resources**: CPU, memory, disk, and network utilization
-- **Business Logic**: Case creation rates, intervention counts, audit append rates
-- **Queue Depths**: Offline escalation queue sizes and retry counts
-
-### Health Checks
-- **Liveness Probe**: Simple endpoint confirming process is running
-- **Readiness Probe**: Database connectivity and essential service checks
-- **Startup Probe**: Extended checks during application initialization
-- **Dependency Checks**: Verification of external service availability
-
-### Logging Structure
-- **Format**: JSON log entries for machine parsing
-- **Fields**: timestamp, level, message, correlation_id, endpoint, user_hash, outcome
-- **Levels**: TRACE, DEBUG, INFO, WARN, ERROR, FATAL
-- **Retention**: Configurable based on compliance requirements
-- **Shipping**: Forwarded to centralized logging system (ELK/Datadog/etc.)
-
-### Alerting Rules
-- **Infrastructure**: High CPU/memory, disk full, service down
-- **Application**: High error rate, authentication failures, validation failures
-- **Security**: Multiple failed logins, privilege escalation attempts, anomalous access patterns
-- **Business**: Sudden drop in case submissions, audit chain breaks, seeding failures
+**[Implemented]**: `/health` (process liveness) + `/ready` (database readiness, used by compose healthchecks); hash-chained audit events for sensitive actions; CI (tests, build, migration check, secret scan); failure drills in `docs/FailureDrills.md`.
+**[Deployment concern / Future]**: request-rate/latency percentiles, centralized JSON log shipping, infrastructure alerting rules, load testing, chaos engineering, blue-green deploys, feature flags — none in repo.
 
 ## Testing Strategy
 
 ### Unit Testing
-- **Framework**: pytest for backend, Jest/React Testing Library for frontend
-- **Coverage Target**: ≥80% for critical business logic
+- **Framework**: pytest for backend (39 tests: core, Phase 1–3, hardening), vitest + jsdom + fake-indexeddb for frontend (18 tests: API states, demo gating, outbox, strings)
+- **Failure drills**: runnable `backend/tests/failure_drill.py` (9/9) + manual browser drills in `docs/FailureDrills.md`
+- **Coverage Target**: critical workflows (auth, cases, interventions, outcomes, HRMS, break-glass, suppression, audit, purge, rate limits)
 - **Isolation**: Mock external dependencies (database, network, time)
 - **Locations**: backend/tests/, frontend/src/__tests__/
 

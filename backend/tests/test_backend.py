@@ -109,7 +109,7 @@ class TestSahayakCore(unittest.TestCase):
             custodian_2_role="medical_officer",
             custodian_2_id="MO_3109",
             custodian_2_pin="6205",
-            justification="Emergency"
+            justification="Emergency life-safety intervention required now"
         )
         success, _, _ = IdentityBroker.break_glass_deanonymize(req_fail)
         self.assertFalse(success)
@@ -123,7 +123,7 @@ class TestSahayakCore(unittest.TestCase):
             custodian_2_role="medical_officer",
             custodian_2_id="MO_3109",
             custodian_2_pin="6205",
-            justification="Emergency life-safety hospital escort"
+            justification="Emergency life-safety hospital escort required"
         )
         success, profile, _ = IdentityBroker.break_glass_deanonymize(req_pass)
         self.assertTrue(success)

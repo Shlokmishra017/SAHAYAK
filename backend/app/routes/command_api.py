@@ -5,11 +5,69 @@ from fastapi import APIRouter, Depends
 from app.models.schemas import CohortHeatmapItem
 from app.ml.synthetic_generator import cohort_manager
 from app.ml.cohesion_analyzer import cohesion_analyzer
+from app.ml.hr_risk_model import hr_risk_engine
 from app.core.k_anonymity import enforce_k_anonymity_cohort, apply_complementary_suppression
 from app.core.audit_chain import audit_ledger
 from app.core.auth import require_roles
 
 router = APIRouter(prefix="/v1/command", tags=["Commander Strategy Layer"])
+
+# Methodology (every number traceable; synthetic demo data, see ModelCard):
+# - avg_fatigue_index = mean over unit members of (5 - mood_avg_7d) / 4 * 10.
+# - risk_distribution = member counts by engine band per unit
+#   (low: 0-1, moderate: 2, elevated: 3, critical: 4).
+# - workload_score = mean night_duty_hours_28d / 160.
+# - leave_denial_rate / duty_variance = unit means of the HR indicators.
+# - Company cells apportion unit totals by fixed demonstration percentages;
+#   the detached outpost (n=14) is a fixed demonstration fixture exercising
+#   the k-anonymity suppression path.
+UNIT_METHODOLOGY = (
+    "Unit means of member observations (fatigue from mood, band counts from "
+    "the risk engine); company cells apportion unit totals by fixed "
+    "demonstration percentages. Synthetic demo data."
+)
+
+COMPANY_SPLITS = [
+    ("Alpha Coy", 0.40),
+    ("Bravo Coy", 0.35),
+    ("Charlie Coy", 0.20),
+]
+
+
+def _unit_aggregates(df, unit_name: str) -> dict:
+    members = df[df["unit_name"] == unit_name]
+    n = len(members)
+    fatigue = float(((5.0 - members["mood_avg_7d"]) / 4.0 * 10.0).mean())
+    bands = {"low": 0, "moderate": 0, "elevated": 0, "critical": 0}
+    baseline_ctx = members.iloc[0]["force_type"] if n else "counter_insurgency"
+    baseline = cohort_manager.cohort_stats.get(baseline_ctx, {"median": 0.50, "mad": 0.12, "count": n})
+    for _, row in members.iterrows():
+        rec = row.to_dict()
+        _, band, _, _ = hr_risk_engine.predict_individual_risk(rec, baseline)
+        if band <= 1:
+            bands["low"] += 1
+        elif band == 2:
+            bands["moderate"] += 1
+        elif band == 3:
+            bands["elevated"] += 1
+        else:
+            bands["critical"] += 1
+    return {
+        "n": n,
+        "avg_fatigue": round(fatigue, 1),
+        "bands": bands,
+        "workload": round(float((members["night_duty_hours_28d"] / 160.0).mean()), 2),
+        "force_type": baseline_ctx,
+    }
+
+
+def _recommendation(avg_fatigue: float) -> str:
+    if avg_fatigue > 6.5:
+        return "High Priority: Plan 14-day Rest Stand-down Cycle"
+    if avg_fatigue > 4.5:
+        return "Moderate Fatigue: Monitor shift rotation variance"
+    return "Standard Routine Deployment"
+
 
 @router.get("/heatmap", response_model=List[CohortHeatmapItem])
 def get_cohort_heatmaps(
@@ -20,44 +78,42 @@ def get_cohort_heatmaps(
     if df.empty:
         return []
 
-    sub_units = cohesion_analyzer.analyze_sub_units(df)
-
     raw_items = []
-    for s in sub_units:
-        n = s["total_personnel"]
-        avg_fatigue = round(float(s["climate_friction_score"] * 10.0), 1)
-        
-        low_count = int(round(n * (1.0 - s["climate_friction_score"]) * 0.7))
-        mod_count = int(round(n * 0.20))
-        elev_count = int(round(n * (s["climate_friction_score"] * 0.6)))
-        crit_count = max(0, n - (low_count + mod_count + elev_count))
-
-        recommendation = "Standard Routine Deployment"
-        if avg_fatigue > 6.5:
-            recommendation = "High Priority: Plan 14-day Rest Stand-down Cycle"
-        elif avg_fatigue > 4.5:
-            recommendation = "Moderate Fatigue: Monitor shift rotation variance"
-
-        metrics = {
-            "parent_unit": s["parent_unit"],
-            "force_type": s["parent_unit"].split()[0],
-            "avg_fatigue_index": avg_fatigue,
-            "risk_distribution": {
-                "low": low_count,
-                "moderate": mod_count,
-                "elevated": elev_count,
-                "critical": crit_count
+    for unit in sorted(df["unit_name"].unique()):
+        agg = _unit_aggregates(df, unit)
+        for coy_name, pct in COMPANY_SPLITS:
+            coy_n = int(round(agg["n"] * pct))
+            dist = {k: int(round(v * pct)) for k, v in agg["bands"].items()}
+            metrics = {
+                "parent_unit": unit,
+                "force_type": unit.split()[0],
+                "avg_fatigue_index": agg["avg_fatigue"],
+                "risk_distribution": dist,
+                "workload_score": agg["workload"],
+                "rotation_recommendation": _recommendation(agg["avg_fatigue"]),
+                "methodology": UNIT_METHODOLOGY,
+                "demonstration_fixture": False,
+            }
+            raw_items.append(enforce_k_anonymity_cohort(
+                cohort_name=f"{unit} - {coy_name}",
+                total_personnel=coy_n,
+                metrics=metrics,
+            ))
+        # Fixed small-cohort fixture exercising suppression (labeled as such).
+        raw_items.append(enforce_k_anonymity_cohort(
+            cohort_name=f"{unit} - Detached Outpost (Small Platoon)",
+            total_personnel=14,
+            metrics={
+                "parent_unit": unit,
+                "force_type": unit.split()[0],
+                "avg_fatigue_index": agg["avg_fatigue"],
+                "risk_distribution": dict(agg["bands"]),
+                "workload_score": agg["workload"],
+                "rotation_recommendation": "Cohort Redacted (k-anonymity guarantee)",
+                "methodology": UNIT_METHODOLOGY,
+                "demonstration_fixture": True,
             },
-            "workload_score": round(float(s["duty_variance"] / 30.0), 2),
-            "rotation_recommendation": recommendation
-        }
-
-        enforced = enforce_k_anonymity_cohort(
-            cohort_name=s["sub_unit_name"],
-            total_personnel=n,
-            metrics=metrics
-        )
-        raw_items.append(enforced)
+        ))
 
     processed_items = apply_complementary_suppression("Command General", raw_items)
 
@@ -81,7 +137,9 @@ def get_cohort_heatmaps(
             avg_fatigue_index=item.get("avg_fatigue_index"),
             risk_distribution=item.get("risk_distribution"),
             workload_score=item.get("workload_score"),
-            rotation_recommendation=item.get("rotation_recommendation")
+            rotation_recommendation=item.get("rotation_recommendation"),
+            methodology=item.get("methodology"),
+            demonstration_fixture=item.get("demonstration_fixture", False),
         ))
 
     return response_list

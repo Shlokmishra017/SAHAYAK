@@ -10,7 +10,8 @@ import {
   CircleHelp,
   ArrowUpRight,
   Heart,
-  Users
+  Users,
+  FileUp
 } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAppState } from '../../context/AppStateContext';
@@ -77,6 +78,13 @@ export function Sidebar({ casesCount = 0 }) {
           >
             <MessageCircle size={17} strokeWidth={1.8} />
             <span>Interventions</span>
+          </NavButton>
+          <NavButton
+            active={pathname.startsWith('/welfare/hrms')}
+            onClick={() => navigate('/welfare/hrms')}
+          >
+            <FileUp size={17} strokeWidth={1.8} />
+            <span>HRMS import</span>
           </NavButton>
         </NavGroup>
       )}

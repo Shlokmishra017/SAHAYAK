@@ -1,0 +1,63 @@
+# Sahayak reproducible deployment: Frontend -> API -> PostgreSQL.
+# Usage: copy backend/.env.example to backend/.env, set JWT_SECRET and
+# custodian PINs plus POSTGRES_PASSWORD below, then:
+#   docker compose up --build
+# Web UI: http://localhost:8080 (API proxied at /v1). API direct: :8000.
+# NOTE: not yet run against a Docker daemon in this workspace (no Docker
+# available); verify with `docker compose up --build` before demo day.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sahayak
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: sahayak
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sahayak -d sahayak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DATABASE_URL: postgresql+psycopg://sahayak:${POSTGRES_PASSWORD}@db:5432/sahayak
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_ISSUER: sahayak-api
+      JWT_EXPIRY_MINUTES: 60
+      CORS_ORIGINS: http://localhost:8080
+      WELFARE_OFFICER_ID: ${WELFARE_OFFICER_ID:?set custodian IDs}
+      WELFARE_OFFICER_PIN: ${WELFARE_OFFICER_PIN:?set custodian PINs}
+      MEDICAL_OFFICER_ID: ${MEDICAL_OFFICER_ID:?set custodian IDs}
+      MEDICAL_OFFICER_PIN: ${MEDICAL_OFFICER_PIN:?set custodian PINs}
+      ADJUTANT_ID: ${ADJUTANT_ID:?set custodian IDs}
+      ADJUTANT_PIN: ${ADJUTANT_PIN:?set custodian PINs}
+      BREAK_GLASS_TTL_MINUTES: 15
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:

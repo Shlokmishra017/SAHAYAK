@@ -1,4 +1,8 @@
-// On-device wellness scoring (Z0). Raw text and continuous scores never leave the device.
+// On-device wellness check.
+// Honest description: multilingual keyword matching + weighted scoring +
+// exponential moving average over self-reported check-ins. This is rules +
+// statistical smoothing, not a neural model and not SHAP/INT8 inference.
+// Raw journal text and continuous scores never leave the device.
 
 const MULTILINGUAL_LEXICON = {
   acute_crisis: [

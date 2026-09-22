@@ -8,6 +8,8 @@ export function InterventionModal({ isOpen, close, currentCase, onInterventionLo
 
   const [kind, setKind] = useState('welfare_counseling');
   const [notes, setNotes] = useState('');
+  const [targetConcern, setTargetConcern] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -24,7 +26,10 @@ export function InterventionModal({ isOpen, close, currentCase, onInterventionLo
     setErrorMsg(null);
 
     try {
-      const res = await logWelfareIntervention(currentCase.case_id, kind, notes.trim());
+      const res = await logWelfareIntervention(currentCase.case_id, kind, notes.trim(), {
+        targetConcern: targetConcern || null,
+        followUpDate: followUpDate || null
+      });
       showToast('Welfare intervention recorded successfully.', 'success');
       refreshGlobalData();
       if (onInterventionLogged) {
@@ -91,6 +96,33 @@ export function InterventionModal({ isOpen, close, currentCase, onInterventionLo
               <option value="clinical_referral">Tele-MANAS (14416) / Medical Officer Connect</option>
               <option value="routine_contact">Routine Welfare Follow-Up</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-[#587068]">Target concern (optional)</label>
+            <select
+              value={targetConcern}
+              onChange={(e) => setTargetConcern(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] px-3 py-2.5 text-[12px] text-[#18342e] outline-none focus:border-[#77a993]"
+            >
+              <option value="">Select concern…</option>
+              <option value="sleep_fatigue">Sleep / fatigue</option>
+              <option value="leave_separation">Leave / family separation</option>
+              <option value="workload_tempo">Workload / operational tempo</option>
+              <option value="post_leave_reentry">Post-leave re-entry</option>
+              <option value="acute_distress">Acute distress</option>
+              <option value="general_checkin">General check-in</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-[#587068]">Follow-up date (optional)</label>
+            <input
+              type="date"
+              value={followUpDate}
+              onChange={(e) => setFollowUpDate(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] px-3 py-2.5 text-[12px] text-[#18342e] outline-none focus:border-[#77a993]"
+            />
           </div>
 
           <div>

@@ -43,9 +43,18 @@ class CohortCohesionAnalyzer:
 
             for coy in coy_distributions:
                 coy_n = int(round(total * coy["pct"]))
+                # Documented demo rule: Alpha companies with mean leave-denial
+                # ratio above 0.22 raise a climate alert. Friction is a stated
+                # composite (70% denial rate + 30% normalized duty variance),
+                # computed on synthetic demo data, not a validated climate
+                # instrument.
                 is_anomaly = (coy["name"].endswith("Alpha Coy") and row["leave_denial_ratio"] > 0.22)
 
-                friction_score = float(np.clip(row["leave_denial_ratio"] * 1.5 + (0.3 if is_anomaly else 0.0), 0.05, 0.95))
+                variance_norm = min(float(row["duty_hour_variance_28d"]) / 30.0, 1.0)
+                friction_score = float(np.clip(
+                    0.7 * float(row["leave_denial_ratio"]) + 0.3 * variance_norm,
+                    0.05, 0.95,
+                ))
                 
                 sub_unit_results.append({
                     "sub_unit_name": coy["name"],

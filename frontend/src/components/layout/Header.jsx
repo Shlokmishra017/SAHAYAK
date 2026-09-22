@@ -9,10 +9,10 @@ import {
   Shield
 } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { useAppState, DEMO_PERSONAS } from '../../context/AppStateContext';
+import { useAppState } from '../../context/AppStateContext';
 
 export function Header({ onSearch, searchQuery = '' }) {
-  const { currentUser, activeRole, loginAsPersona, logout } = useAppState();
+  const { currentUser, activeRole, logout } = useAppState();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -40,15 +40,6 @@ export function Header({ onSearch, searchQuery = '' }) {
     if (p.startsWith('/wellness')) return 'Daily check-in';
     if (p.startsWith('/guidance')) return 'Guidance SOP';
     return 'Dashboard';
-  };
-
-  const handleSwitchPersona = (persona) => {
-    loginAsPersona(persona);
-    setProfileDropdownOpen(false);
-    if (persona.role === 'welfare') navigate('/welfare');
-    else if (persona.role === 'command') navigate('/command');
-    else if (persona.role === 'audit') navigate('/audit');
-    else if (persona.role === 'device') navigate('/wellness');
   };
 
   const handleSignOut = () => {
@@ -126,34 +117,12 @@ export function Header({ onSearch, searchQuery = '' }) {
                 <div className="mt-1 inline-flex items-center gap-1 rounded bg-[#eaf5ef] px-2 py-0.5 text-[9px] font-bold text-[#27705c]">
                   <Shield size={10} /> {currentUser?.clearance}
                 </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-[#8ba099]">
+                  Signed in as this role. To use another workspace, sign out and sign in again.
+                </p>
               </div>
 
-              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#8ba099]">
-                Switch Role / Persona
-              </div>
-              <div className="flex flex-col gap-1 mt-1">
-                {DEMO_PERSONAS.map((persona) => (
-                  <button
-                    key={persona.id}
-                    onClick={() => handleSwitchPersona(persona)}
-                    className={`flex items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs transition-colors ${
-                      currentUser?.serviceNo === persona.serviceNo
-                        ? 'bg-[#e6f1eb] font-semibold text-[#174d43]'
-                        : 'text-[#426056] hover:bg-[#f0f5f2]'
-                    }`}
-                  >
-                    <div>
-                      <div>{persona.name}</div>
-                      <div className="text-[10px] text-[#8ba099]">{persona.roleLabel}</div>
-                    </div>
-                    {currentUser?.serviceNo === persona.serviceNo && (
-                      <span className="size-1.5 rounded-full bg-[#27705c]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-3 border-t border-[#edf1ef] pt-2">
+              <div className="mt-1 border-t border-[#edf1ef] pt-2">
                 <button
                   onClick={handleSignOut}
                   className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-[#a55342] hover:bg-[#fae6e0] transition-colors"
@@ -187,6 +156,12 @@ export function Header({ onSearch, searchQuery = '' }) {
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#426056] hover:bg-[#f0f5f2]"
               >
                 Interventions
+              </button>
+              <button
+                onClick={() => { navigate('/welfare/hrms'); setMobileMenuOpen(false); }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#426056] hover:bg-[#f0f5f2]"
+              >
+                HRMS import
               </button>
             </>
           )}
