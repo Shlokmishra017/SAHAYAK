@@ -27,6 +27,7 @@ import {
 } from '../../services/api';
 import { PERSONNEL_STRINGS } from '../../services/strings';
 import { useAppState } from '../../context/AppStateContext';
+import { enqueueOutbox } from '../../services/outbox';
 
 const CONSENT_KEY = 'sahayak_wellness_consent';
 
@@ -169,7 +170,6 @@ export function PersonnelView() {
       }
     } catch (err) {
       if (err?.code === 'BACKEND_UNAVAILABLE') {
-        const { enqueueOutbox } = await import('../../services/outbox');
         await enqueueOutbox('self_referral', {
           client_event_id: crypto.randomUUID(),
           pseudonym_id: pseudonymId,

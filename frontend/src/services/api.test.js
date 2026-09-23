@@ -58,7 +58,7 @@ describe('normal-mode failure visibility', () => {
     const payload = { authorized_custodians: [{ id: 'WO_7742', role: 'welfare_officer' }] };
     global.fetch.mockResolvedValue({ ok: true, json: async () => payload });
     const res = await fetchCustodiansInfo();
-    expect(JSON.stringify(res)).not.toMatch(/9481|demo_pin/);
+    expect(JSON.stringify(res)).not.toMatch(/9481|demo_pin/); // ci-allow-seeded-demo
   });
 
   it('successful responses are returned untouched', async () => {

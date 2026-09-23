@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { loginWithCredentials } from '../../services/api';
 import { useAppState, DEMO_PERSONAS } from '../../context/AppStateContext';
 
+const DEMO_PASSWORD = 'ServicePass@2026'; // ci-allow-seeded-demo
+
 export function LoginPortal() {
   const { loginWithResolvedUser } = useAppState();
   const navigate = useNavigate();
@@ -17,7 +19,7 @@ export function LoginPortal() {
   const handleQuickFill = (persona) => {
     setFullName(persona.name);
     setServiceId(persona.serviceNo);
-    setPassword('ServicePass@2026');
+    setPassword(DEMO_PASSWORD);
     setErrorMessage(null);
   };
 
@@ -132,7 +134,7 @@ export function LoginPortal() {
                 <label className="text-[11px] font-bold text-[#587068]">
                   Password
                 </label>
-                <span className="text-[10px] text-[#27705c] font-medium">Demo: ServicePass@2026</span>
+                <span className="text-[10px] text-[#27705c] font-medium">Demo: {DEMO_PASSWORD}</span>
               </div>
               <div className="relative">
                 <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa6a1]" />
@@ -140,7 +142,7 @@ export function LoginPortal() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password (Demo: ServicePass@2026)"
+                  placeholder={`Password (Demo: ${DEMO_PASSWORD})`}
                   required
                   className="w-full rounded-xl border border-[#dce6e0] bg-[#fbfdfb] pl-9 pr-3 py-2.5 text-xs text-[#18342e] outline-none focus:border-[#77a993] transition-colors"
                 />
