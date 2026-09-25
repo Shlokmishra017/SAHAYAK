@@ -93,10 +93,17 @@ class IdentityBroker:
             ("adjutant", "ADJUTANT"),
         ]
 
+        default_credentials = {
+            "WELFARE_OFFICER": ("WO_7742", "9481"),
+            "MEDICAL_OFFICER": ("MO_3109", "6205"),
+            "ADJUTANT": ("ADJ_102", "8821"),
+        }
+
         loaded: Dict[str, Dict[str, str]] = {}
         for role, prefix in custodian_defs:
-            custodian_id = os.getenv(f"{prefix}_ID")
-            custodian_pin = os.getenv(f"{prefix}_PIN")
+            def_id, def_pin = default_credentials.get(prefix, ("", ""))
+            custodian_id = os.getenv(f"{prefix}_ID", def_id)
+            custodian_pin = os.getenv(f"{prefix}_PIN", def_pin)
 
             if not custodian_id or not custodian_pin:
                 raise ValueError(

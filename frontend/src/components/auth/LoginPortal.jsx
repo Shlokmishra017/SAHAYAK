@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Lock, User, KeyRound, AlertTriangle, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { loginWithCredentials } from '../../services/api';
 import { useAppState, DEMO_PERSONAS } from '../../context/AppStateContext';
 
@@ -189,6 +189,16 @@ export function LoginPortal() {
                   <div className="mt-1 font-mono text-[9px] text-[#27705c] font-bold">{p.serviceNo}</div>
                 </button>
               ))}
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#edf1ef] text-center">
+              <Link
+                to="/v0"
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#8a632a] hover:text-[#5e4118] transition-colors"
+              >
+                <span>Preview Executive Design Showcase (v0 Prototype)</span>
+                <ArrowRight size={12} />
+              </Link>
             </div>
           </div>
         </div>

@@ -1,9 +1,10 @@
-"""Sahayak backend entrypoint."""
-
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -125,8 +126,9 @@ app.include_router(audit_router, dependencies=[Depends(get_current_user)])
 app.include_router(hrms_router, dependencies=[Depends(get_current_user)])
 app.include_router(alerts_router, dependencies=[Depends(get_current_user)])
 
-@app.get("/")
-def root():
+@app.get("/api")
+@app.get("/v1")
+def api_root():
     return {
         "service": "Sahayak AI Core API",
         "status": "operational",
@@ -154,9 +156,49 @@ def readiness_check():
             conn.execute(sql_text("SELECT 1"))
         return {"ready": True, "database": "reachable"}
     except Exception as exc:
-        from fastapi.responses import JSONResponse
-
         return JSONResponse(
             status_code=503,
             content={"ready": False, "database": "unreachable", "detail": str(exc)[:200]},
         )
+
+# Frontend Integration: discover built static assets and serve SPA
+_candidate_paths = [
+    os.getenv("FRONTEND_DIST"),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dist")),
+    "/code/frontend/dist",
+    "/app/frontend/dist",
+]
+FRONTEND_DIST = next((p for p in _candidate_paths if p and os.path.isdir(p)), None)
+
+if FRONTEND_DIST:
+    assets_dir = os.path.join(FRONTEND_DIST, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="static-assets")
+
+    @app.get("/", include_in_schema=False)
+    def serve_root():
+        index_file = os.path.join(FRONTEND_DIST, "index.html")
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+        return api_root()
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str):
+        if full_path.startswith("v1") or full_path in ("health", "ready", "docs", "openapi.json", "redoc", "api"):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        target = os.path.join(FRONTEND_DIST, full_path)
+        if full_path and os.path.isfile(target):
+            return FileResponse(target)
+
+        index_file = os.path.join(FRONTEND_DIST, "index.html")
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+
+        raise HTTPException(status_code=404, detail="Not Found")
+else:
+    @app.get("/")
+    def serve_fallback_root():
+        return api_root()

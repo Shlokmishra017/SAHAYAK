@@ -21,6 +21,7 @@ import { PersonnelView } from './components/personnel/PersonnelView';
 import { HrmsImportView } from './components/hrms/HrmsImportView';
 
 import { GuidanceView } from './components/governance/GuidanceView';
+import { V0SahayakApp } from './components/v0/V0SahayakApp';
 
 function RequireAuth({ children }) {
   const { isAuthenticated } = useAppState();
@@ -57,6 +58,9 @@ export default function App() {
         <ErrorBoundary>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/v0" element={<V0SahayakApp />} />
+            <Route path="/preview" element={<V0SahayakApp />} />
+            <Route path="/showcase" element={<V0SahayakApp />} />
 
             <Route
               path="/"

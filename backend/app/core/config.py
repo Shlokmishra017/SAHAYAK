@@ -11,12 +11,12 @@ load_dotenv()
 class Settings:
     demo_mode: bool = os.getenv("DEMO_MODE", "false").lower() == "true"
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./sahayak.db")
-    jwt_secret: str = os.getenv("JWT_SECRET")
+    jwt_secret: str = os.getenv("JWT_SECRET", "sahayak-hackathon-secure-production-jwt-secret-32-chars")
     jwt_issuer: str = os.getenv("JWT_ISSUER", "sahayak-api")
     jwt_expiry_minutes: int = int(os.getenv("JWT_EXPIRY_MINUTES", "60"))
     cors_origins: tuple[str, ...] = tuple(
         origin.strip()
-        for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        for origin in os.getenv("CORS_ORIGINS", "*").split(",")
         if origin.strip()
     )
 

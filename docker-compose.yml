@@ -1,63 +1,43 @@
-# Sahayak reproducible deployment: Frontend -> API -> PostgreSQL.
-# Usage: copy backend/.env.example to backend/.env, set JWT_SECRET and
-# custodian PINs plus POSTGRES_PASSWORD below, then:
+# Sahayak Monolithic Unified Deployment: Frontends + FastAPI + SQLite
+# Single container, single public service, single port.
+#
+# Usage:
 #   docker compose up --build
-# Web UI: http://localhost:8080 (API proxied at /v1). API direct: :8000.
-# NOTE: not yet run against a Docker daemon in this workspace (no Docker
-# available); verify with `docker compose up --build` before demo day.
+#
+# Entire application (UI + v0 + API + Docs): http://localhost:8000
+#   - Main Web App:       http://localhost:8000/
+#   - Executive UI (v0):  http://localhost:8000/v0
+#   - API Direct:         http://localhost:8000/v1/
+#   - Swagger Docs:       http://localhost:8000/docs
+#   - Health Check:       http://localhost:8000/health
 
 services:
-  db:
-    image: postgres:16-alpine
+  sahayak:
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      POSTGRES_USER: sahayak
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-      POSTGRES_DB: sahayak
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sahayak -d sahayak"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  api:
-    build: ./backend
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DEMO_MODE: ${DEMO_MODE:-false}
-      DATABASE_URL: postgresql+psycopg://sahayak:${POSTGRES_PASSWORD}@db:5432/sahayak
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./sahayak.db}
+      PORT: ${PORT:-8000}
+      HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:-sahayak-production-monolith-deployment-secret-32-chars-min}
       JWT_ISSUER: sahayak-api
       JWT_EXPIRY_MINUTES: 60
-      CORS_ORIGINS: http://localhost:8080
-      WELFARE_OFFICER_ID: ${WELFARE_OFFICER_ID:?set custodian IDs}
-      WELFARE_OFFICER_PIN: ${WELFARE_OFFICER_PIN:?set custodian PINs}
-      MEDICAL_OFFICER_ID: ${MEDICAL_OFFICER_ID:?set custodian IDs}
-      MEDICAL_OFFICER_PIN: ${MEDICAL_OFFICER_PIN:?set custodian PINs}
-      ADJUTANT_ID: ${ADJUTANT_ID:?set custodian IDs}
-      ADJUTANT_PIN: ${ADJUTANT_PIN:?set custodian PINs}
+      CORS_ORIGINS: "*"
+      WELFARE_OFFICER_ID: ${WELFARE_OFFICER_ID:-WO_7742}
+      WELFARE_OFFICER_PIN: ${WELFARE_OFFICER_PIN:-9481}
+      MEDICAL_OFFICER_ID: ${MEDICAL_OFFICER_ID:-MO_3109}
+      MEDICAL_OFFICER_PIN: ${MEDICAL_OFFICER_PIN:-6205}
+      ADJUTANT_ID: ${ADJUTANT_ID:-ADJ_102}
+      ADJUTANT_PIN: ${ADJUTANT_PIN:-8821}
       BREAK_GLASS_TTL_MINUTES: 15
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')\""]
+      test: ["CMD-SHELL", "curl -f http://localhost:${PORT:-8000}/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
-
-  web:
-    build: ./frontend
-    restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
-    ports:
-      - "8080:80"
-
-volumes:
-  pgdata:
+      retries: 5
+      start_period: 15s

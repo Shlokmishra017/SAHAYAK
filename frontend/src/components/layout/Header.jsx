@@ -12,7 +12,8 @@ import {
   KeyRound,
   Database,
   MapPin,
-  HeartHandshake
+  HeartHandshake,
+  Sparkles
 } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAppState } from '../../context/AppStateContext';
@@ -102,6 +103,15 @@ export function Header({ onSearch, searchQuery = '' }) {
           <ShieldCheck size={14} className="text-[#286c58]" />
           <span>Trust & Architecture</span>
         </button>
+
+        <Link
+          to="/v0"
+          className="hidden sm:flex items-center gap-1.5 rounded-xl border border-[#dfe8e4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#49635b] hover:bg-[#f0f5f2] transition-colors"
+          title="Switch to Executive Prototype (v0)"
+        >
+          <Sparkles size={14} className="text-[#bf8141]" />
+          <span>Executive View (v0)</span>
+        </Link>
 
         <button
           className="relative rounded-lg p-2 text-[#6c7d78] hover:bg-[#f0f5f2] transition-colors"
@@ -219,6 +229,12 @@ export function Header({ onSearch, searchQuery = '' }) {
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#426056] hover:bg-[#f0f5f2]"
           >
             Guidance
+          </button>
+          <button
+            onClick={() => { navigate('/v0'); setMobileMenuOpen(false); }}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#a97532] hover:bg-[#fcf8f0] border-t border-[#edf1ef]"
+          >
+            Executive View (v0 Prototype)
           </button>
         </div>
       )}
